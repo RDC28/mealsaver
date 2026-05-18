@@ -1,0 +1,21 @@
+{
+  "name": "mealsaver",
+  "version": "1.0.0",
+  "description": "MealSaver is a food-rescue platform that connects food donors with verified NGOs, shelters, community kitchens, orphanages, and feeding programs through a fast pickup and redistribution system.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rdc28/mealsaver.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/rdc28/mealsaver/issues"
+  },
+  "homepage": "https://github.com/rdc28/mealsaver#readme"
+}
