@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+
+<html class="scroll-smooth" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>MealSaver NGO Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary": "#795600",
+                    "on-secondary": "#ffffff",
+                    "inverse-primary": "#63df7b",
+                    "tertiary-fixed": "#ffdea8",
+                    "secondary": "#59605c",
+                    "error": "#ba1a1a",
+                    "on-secondary-fixed-variant": "#414845",
+                    "on-tertiary-container": "#fffbff",
+                    "inverse-surface": "#2f3133",
+                    "inverse-on-surface": "#f0f0f3",
+                    "on-primary-fixed-variant": "#00531f",
+                    "background": "#f9f9fc",
+                    "surface-container-high": "#e8e8ea",
+                    "primary-fixed": "#80fc94",
+                    "on-error-container": "#93000a",
+                    "outline": "#6e7b6c",
+                    "on-secondary-fixed": "#161d1a",
+                    "surface-container-highest": "#e2e2e5",
+                    "outline-variant": "#bdcab9",
+                    "surface": "#f9f9fc",
+                    "surface-dim": "#dadadc",
+                    "secondary-fixed": "#dde4df",
+                    "on-secondary-container": "#5d6461",
+                    "on-primary-fixed": "#002108",
+                    "on-primary-container": "#f7fff2",
+                    "error-container": "#ffdad6",
+                    "on-tertiary-fixed": "#271900",
+                    "tertiary-container": "#986d00",
+                    "surface-bright": "#f9f9fc",
+                    "on-background": "#1a1c1e",
+                    "secondary-container": "#dae1dd",
+                    "on-surface-variant": "#3e4a3d",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-tint": "#006e2b",
+                    "surface-container": "#eeeef0",
+                    "on-tertiary-fixed-variant": "#5e4200",
+                    "primary": "#006b2a",
+                    "on-surface": "#1a1c1e",
+                    "on-primary": "#ffffff",
+                    "on-error": "#ffffff",
+                    "surface-variant": "#e2e2e5",
+                    "surface-container-low": "#f3f3f6",
+                    "secondary-fixed-dim": "#c1c8c4",
+                    "tertiary-fixed-dim": "#ffba20",
+                    "primary-fixed-dim": "#63df7b",
+                    "primary-container": "#008737",
+                    "on-tertiary": "#ffffff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "stack-md": "16px",
+                    "stack-lg": "32px",
+                    "gutter": "24px",
+                    "margin-mobile": "16px",
+                    "stack-sm": "8px",
+                    "container-max": "1280px",
+                    "margin-desktop": "48px"
+            },
+            "fontFamily": {
+                    "body-md": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "label-sm": ["Inter"],
+                    "label-md": ["Inter"],
+                    "headline-md": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "headline-lg-mobile": ["Inter"]
+            },
+            "fontSize": {
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+                    "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "headline-lg": ["40px", {"lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "headline-lg-mobile": ["32px", {"lineHeight": "38px", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 24px;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .scroll-hide::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md min-h-screen">
+<!-- TopNavBar -->
+<header class="bg-surface shadow-sm sticky top-0 z-50 h-20 flex items-center">
+<nav class="flex justify-between items-center w-full px-margin-desktop max-w-container-max mx-auto">
+<div class="font-headline-md text-headline-md font-bold text-primary">MealSaver</div>
+<div class="hidden md:flex items-center gap-stack-lg">
+<a class="font-label-md text-label-md text-primary font-bold border-b-2 border-primary pb-1" href="#">Impact</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" href="#">How it Works</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" href="#">For Donors</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" href="#">For NGOs</a>
+</div>
+<button class="bg-primary text-on-primary px-6 py-3 rounded-[16px] font-label-md active:scale-95 transition-all">Get Started</button>
+</nav>
+</header>
+<main class="max-w-container-max mx-auto px-margin-desktop py-stack-lg">
+<!-- Header Section -->
+<section class="mb-stack-lg flex flex-col md:flex-row justify-between items-end gap-stack-md">
+<div>
+<h1 class="font-headline-lg text-headline-lg text-on-surface">Nearby Donations</h1>
+<p class="text-on-surface-variant mt-2 max-w-xl">Matching fresh food surpluses with community needs. Your high-impact matches are prioritized.</p>
+</div>
+<div class="flex gap-stack-sm">
+<span class="bg-secondary-container text-on-secondary-container px-4 py-2 rounded-full font-label-md flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">location_on</span>
+                    Downtown HQ (2km radius)
+                </span>
+</div>
+</section>
+<!-- Main Dashboard: Grid of Large Cards -->
+<div class="bento-grid" id="dashboard-grid">
+<!-- Card 1 -->
+<div class="bg-surface-container-lowest rounded-[24px] overflow-hidden shadow-[0px_4px_20px_rgba(0,0,0,0.05)] border border-outline-variant group cursor-pointer hover:shadow-lg transition-all" onclick="openDetail('Organic Veggie Box')">
+<div class="h-56 relative overflow-hidden">
+<img alt="Fresh Vegetables" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="A vibrant, close-up photograph of a variety of organic vegetables including bell peppers, tomatoes, and leafy greens. The lighting is bright and natural, highlighting the dew drops on the skins. The aesthetic is clean, minimalist, and fresh, using a palette of greens and earthy tones to evoke a sense of community-focused health." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCQt8LZfrEyWXh3naqtnaetHdKS8QstGXsyH3Sg-NNWzFtsnNZ-PyjvvUViVzC-tvzm3fpydUg27rYFSYoYQQ4qWX0T_vtFF90rD_Nzx1an-LGCvr5th_toCzHDuZewoCQ-Wt8ZfqEoOw3xEdEpNMy3o6afeQweWQ5xduMPsRl2fN-fSxEKA9ClsRDM9GtGfOqKV3LH4ug9jlmw4uMIWYSTwKX8JuM1KK0skh16sScFV06SIwei3VUKS-tbqkgbo9_jtGn9PdSPfqd1"/>
+<div class="absolute top-4 left-4 bg-primary text-on-primary font-label-md px-3 py-1 rounded-full flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">star</span>
+                        98% Match
+                    </div>
+</div>
+<div class="p-6">
+<div class="flex justify-between items-start mb-4">
+<h3 class="font-headline-md text-headline-md text-on-surface">Organic Veggie Box</h3>
+<span class="bg-[#e8f5e9] text-[#2e7d32] px-3 py-1 rounded-full text-label-sm font-bold">Available</span>
+</div>
+<div class="grid grid-cols-2 gap-y-4">
+<div class="flex items-center gap-2 text-on-surface-variant">
+<span class="material-symbols-outlined text-primary">distance</span>
+<span class="text-label-md">0.8 km</span>
+</div>
+<div class="flex items-center gap-2 text-on-surface-variant">
+<span class="material-symbols-outlined text-primary">restaurant</span>
+<span class="text-label-md">12 portions</span>
+</div>
+<div class="flex items-center gap-2 text-on-surface-variant">
+<span class="material-symbols-outlined text-primary">schedule</span>
+<span class="text-label-md">Pick up by 18:00</span>
+</div>
+<div class="flex items-center gap-2 text-on-surface-variant">
+<span class="material-symbols-outlined text-primary">eco</span>
+<span class="text-label-md">Freshly Harvested</span>
+</div>
+</div>
+<button class="w-full mt-6 bg-surface-container text-primary font-label-md py-4 rounded-[16px] group-hover:bg-primary group-hover:text-on-primary transition-colors">View Details</button>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="bg-surface-container-lowest rounded-[24px] overflow-hidden shadow-[0px_4px_20px_rgba(0,0,0,0.05)] border border-outline-variant group cursor-pointer hover:shadow-lg transition-all" onclick="openDetail('Artisan Bakery Surplus')">
+<div class="h-56 relative overflow-hidden">
+<img alt="Fresh Bakery" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="A warm, rustic display of artisan sourdough bread and pastries on a wooden surface. The lighting is soft and golden, creating a cozy and welcoming atmosphere. The composition is focused on the textures of the crusts, reflecting a community-centric and trustworthy brand personality with soft, natural tones." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB7RAbKFHE9vfAmn0WSCTd8eMkbg6D-urKpmVohs45B1IT7HHwe7lrv_iBGOmOed3gnIRoVUTjNwqSYTOKAC1cJvmq4Zid55tndXxsaNITiuqNjIvZk3Hi-TXqTMH69e4A3Msx_qn65Dh_9ViH-eH40nC8UfDMLrECjp8GL8QjbXEuDVWN9f7u6IwoJROU5cHY6VlPDPqG2rzTzlJkvi9jYb7XAYOT_R_432MMHpqabX0DERO2lh1I1TtZrUDFTXAuW4ozhj896o0Rd"/>
+<div class="absolute top-4 left-4 bg-primary text-on-primary font-label-md px-3 py-1 rounded-full flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">star</span>
+                        92% Match
+                    </div>
+</div>
+<div class="p-6">
+<div class="flex justify-between items-start mb-4">
+<h3 class="font-headline-md text-headline-md text-on-surface">Artisan Bakery Surplus</h3>
+<span class="bg-[#fff8e1] text-[#f57f17] px-3 py-1 rounded-full text-label-sm font-bold">Expiring Soon</span>
+</div>
+<div class="grid grid-cols-2 gap-y-4">
+<div class="flex items-center gap-2 text-on-surface-variant">
+<span class="material-symbols-outlined text-primary">distance</span>
+<span class="text-label-md">2.4 km</span>
+</div>
+<div class="flex items-center gap-2 text-on-surface-variant">
+<span class="material-symbols-outlined text-primary">restaurant</span>
+<span class="text-label-md">25 items</span>
+</div>
+<div class="flex items-center gap-2 text-on-surface-variant">
+<span class="material-symbols-outlined text-primary">schedule</span>
+<span class="text-label-md">Pick up by 20:30</span>
+</div>
+<div class="flex items-center gap-2 text-on-surface-variant">
+<span class="material-symbols-outlined text-primary">inventory_2</span>
+<span class="text-label-md">Dry Storage</span>
+</div>
+</div>
+<button class="w-full mt-6 bg-surface-container text-primary font-label-md py-4 rounded-[16px] group-hover:bg-primary group-hover:text-on-primary transition-colors">View Details</button>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="bg-surface-container-lowest rounded-[24px] overflow-hidden shadow-[0px_4px_20px_rgba(0,0,0,0.05)] border border-outline-variant group cursor-pointer hover:shadow-lg transition-all" onclick="openDetail('Hotel Breakfast Tray')">
+<div class="h-56 relative overflow-hidden">
+<img alt="Catering Meal" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="A professionally prepared hotel breakfast spread featuring fresh fruit, yogurt, and hot dishes in elegant containers. The lighting is high-key and modern, emphasizing a clean and hygienic preparation. The overall visual style is lightweight and sophisticated, fitting a premium community rescue service." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA9g95VTCtCBFR91uJ4gMlVZq0WR_YM8vnPN-OWrgoduMBu9rqAdNrBPxDDGEdjL4QMuunapY9txrI2_DqmnYxDDYNivpGU_lCHa_beRdSea5jui-3tEbdD806PRkzAu48wLByHIL0uNvIpIGs0yL7LFB2pMwufyuocyN7LPGKfmiqq73yvKNc-7mHfmT38N1LEEJsH3fQmELHn6rwgAY2datsPgWcHWyOPnDuFHlMLy_dO1g8xhPjq3wD2Pz5ycUf_sUNkoqz5Xt_J"/>
+<div class="absolute top-4 left-4 bg-primary text-on-primary font-label-md px-3 py-1 rounded-full flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">star</span>
+                        85% Match
+                    </div>
+</div>
+<div class="p-6">
+<div class="flex justify-between items-start mb-4">
+<h3 class="font-headline-md text-headline-md text-on-surface">Premium Breakfast Surplus</h3>
+<span class="bg-[#e8f5e9] text-[#2e7d32] px-3 py-1 rounded-full text-label-sm font-bold">Available</span>
+</div>
+<div class="grid grid-cols-2 gap-y-4">
+<div class="flex items-center gap-2 text-on-surface-variant">
+<span class="material-symbols-outlined text-primary">distance</span>
+<span class="text-label-md">1.5 km</span>
+</div>
+<div class="flex items-center gap-2 text-on-surface-variant">
+<span class="material-symbols-outlined text-primary">restaurant</span>
+<span class="text-label-md">8 portions</span>
+</div>
+<div class="flex items-center gap-2 text-on-surface-variant">
+<span class="material-symbols-outlined text-primary">schedule</span>
+<span class="text-label-md">Pick up by 11:00</span>
+</div>
+<div class="flex items-center gap-2 text-on-surface-variant">
+<span class="material-symbols-outlined text-primary">ac_unit</span>
+<span class="text-label-md">Refrigerated</span>
+</div>
+</div>
+<button class="w-full mt-6 bg-surface-container text-primary font-label-md py-4 rounded-[16px] group-hover:bg-primary group-hover:text-on-primary transition-colors">View Details</button>
+</div>
+</div>
+</div>
+<!-- Detail Modal View (Hidden by default) -->
+<div class="fixed inset-0 bg-on-surface/40 backdrop-blur-sm z-[100] hidden items-center justify-center p-4" id="detail-overlay">
+<div class="bg-surface w-full max-w-4xl max-h-[921px] rounded-[32px] overflow-hidden flex flex-col md:flex-row relative" id="detail-card">
+<button class="absolute top-4 right-4 z-10 bg-white/20 backdrop-blur-md p-2 rounded-full hover:bg-white/40 transition-all" onclick="closeDetail()">
+<span class="material-symbols-outlined text-white">close</span>
+</button>
+<div class="md:w-1/2 h-64 md:h-auto relative">
+<img class="w-full h-full object-cover" data-alt="A stunningly fresh assortment of vegetables including vibrant bell peppers, crisp cucumbers, and ripe tomatoes arranged artistically. The lighting is bright and airy, reflecting a clean and modern minimalist design. The high-resolution image conveys quality and health, emphasizing the rewarding nature of food rescue." id="detail-img" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAKGNX6x4wsLjTylV0UQZqRZscEN6jbmJjRFNWSXzFq9kei5OWTIJsPLTVQn9Dr46_sZZMn4G5-acz5GdzK-S5fxYEWdWtIHv6ycZa_i7JK7FTnPxSVnZhWubfTvPZUbE9D5XegzuDBFO09R6IbsWamynNPwwB1VkN_LvfDqEREvKL_Yo_4spcm7m-he9TBniHYhnf8IU2rsZnz4g5kvaTazIoeKt3PUzdCVR1HneUM9RQAhkJ9BT4Jx6fAhgd9OxwOwUdnAnvimiYE"/>
+<div class="absolute bottom-6 left-6 right-6 p-4 glass-card rounded-2xl flex items-center justify-between">
+<div>
+<p class="text-label-sm uppercase tracking-wider text-primary">Match Score</p>
+<p class="font-headline-md text-primary">98% Priority</p>
+</div>
+<div class="w-12 h-12 rounded-full border-4 border-primary/20 border-t-primary flex items-center justify-center font-bold text-primary">
+                            98
+                        </div>
+</div>
+</div>
+<div class="md:w-1/2 p-8 overflow-y-auto scroll-hide bg-surface-container-lowest">
+<h2 class="font-headline-lg text-headline-lg text-on-surface mb-2" id="detail-title">Organic Veggie Box</h2>
+<p class="text-on-surface-variant mb-8">A surplus of fresh seasonal vegetables from GreenLeaf Farms. All items are washed and packed in eco-friendly crates.</p>
+<div class="space-y-6">
+<div class="flex items-center gap-4">
+<div class="bg-primary-container/20 p-3 rounded-2xl">
+<span class="material-symbols-outlined text-primary">location_on</span>
+</div>
+<div>
+<p class="text-label-md font-bold">Location</p>
+<p class="text-body-md text-on-surface-variant">GreenLeaf Farms, 128 Market St.</p>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="bg-primary-container/20 p-3 rounded-2xl">
+<span class="material-symbols-outlined text-primary">schedule</span>
+</div>
+<div>
+<p class="text-label-md font-bold">Pickup Window</p>
+<p class="text-body-md text-on-surface-variant">Today, 14:00 - 18:00</p>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="bg-primary-container/20 p-3 rounded-2xl">
+<span class="material-symbols-outlined text-primary">inventory_2</span>
+</div>
+<div>
+<p class="text-label-md font-bold">Storage Details</p>
+<p class="text-body-md text-on-surface-variant">Room Temperature / Ambient</p>
+</div>
+</div>
+<!-- Map Preview -->
+<div class="rounded-2xl overflow-hidden h-32 w-full bg-surface-container-high relative border border-outline-variant">
+<img class="w-full h-full object-cover" data-alt="A clean and stylized digital map fragment showing city streets with a single green pin highlighting a location. The map is designed with soft pastel colors and minimal labels to reduce cognitive load, fitting the modern minimalist UI. A subtle path indicates the distance from the user's current location." data-location="San Francisco" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCa8VEOvOTRZU_kF-gmZ0YRc-okrU1NqfVuuShEtVV9cQrgEX7gO1D_j1BNHgeF8Xvy296egdpP3iVozbd11UOapmP2zN3MlWIvMN18IepD-6J6V93bLxlC3Qc7qeD3HSaCpjTFFXX9337IBGvJPfP0_q0VYgSG29GPNTgkjxm96c9kPANYvF1ENiLoyyagpeYQyskgMKiWFAQWK0VMGKS1LgRHwPUxJe2r2ssw-8F9QKPq-qLSjji_0thQnPbhHDgZla_2QvgZi6mk"/>
+<div class="absolute inset-0 bg-primary/10"></div>
+</div>
+<button class="w-full bg-primary text-on-primary py-5 rounded-[16px] font-headline-md active:scale-[0.98] transition-all shadow-lg" id="accept-btn" onclick="acceptDonation()">Accept Donation</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Confirmation State (Initially Hidden) -->
+<div class="hidden" id="confirmation-view">
+<div class="max-w-2xl mx-auto py-12 text-center">
+<div class="w-24 h-24 bg-primary rounded-full flex items-center justify-center mx-auto mb-8 shadow-xl">
+<span class="material-symbols-outlined text-on-primary text-5xl">check_circle</span>
+</div>
+<h1 class="font-headline-lg text-headline-lg text-on-surface mb-4">Donation Accepted!</h1>
+<p class="text-body-lg text-on-surface-variant mb-12">We've notified the donor. A volunteer has been assigned to your rescue mission.</p>
+<div class="bg-surface-container-lowest rounded-[32px] p-8 border border-outline-variant text-left shadow-sm">
+<h3 class="font-headline-md text-headline-md mb-6">Logistics Overview</h3>
+<div class="flex items-center gap-6 p-4 bg-primary-container/10 rounded-2xl mb-6">
+<img class="w-16 h-16 rounded-full object-cover border-2 border-primary" data-alt="A friendly, high-key portrait of a smiling volunteer driver wearing a modern green uniform. The background is a soft, out-of-focus city park, emphasizing the community-focused nature of the brand. The lighting is warm and natural, creating a sense of trust and approachability." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB9pzrxP_F1Rgda0O9YYP9gkw1JC2WdsBPv1LFHAMEtzhnAlJI43lf3Qig6n6cbowVaJfBeDi6Hg3rTvcoIQlctiLk2hGi5bZpwKR6hewdyk3kSaeba2oS1XUu29pgPl61SijGMjo00dvxegK7XIHuvYlR_OfeKU6DWRYuFOFvZwenzeP8jXmKMUnb8fd0N2Q2HB9NzUw8x0IMHEbNQqxAQE9Ytskeq0jSMwwSkt7aNwcai76dWO7BXk8CmG5_RIcu3PoH-mj1dSNAH"/>
+<div>
+<p class="text-label-sm uppercase text-primary font-bold">Assigned Volunteer</p>
+<p class="font-headline-md text-on-surface">Alex Rivera</p>
+<div class="flex items-center gap-1 text-on-surface-variant mt-1">
+<span class="material-symbols-outlined text-sm">directions_car</span>
+<span class="text-label-md">ETA: 14 Minutes</span>
+</div>
+</div>
+<button class="ml-auto p-4 bg-primary-container rounded-full text-primary active:scale-90 transition-transform">
+<span class="material-symbols-outlined">call</span>
+</button>
+</div>
+<div class="rounded-2xl overflow-hidden h-48 w-full border border-outline-variant relative">
+<div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+<img class="w-full h-full object-cover" data-alt="A professional navigation map interface showing a green route line weaving through a simplified city grid. The map features modern UI elements like a pulsing blue dot for the driver and a checkered flag for the destination. The design is airy and minimalist, avoiding clutter for a focused user experience." data-location="San Francisco" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCTDIN0Kc6pMes29B6ML58hdi9hb0GxWwkEbSMpBBzGPDTj7Wej2OvHRcQhcBd4XA3kU9r5sDyFbRAbZzzswohrORjm2A4cgTc5TuGkBrG_j4DkCSeUochZi516cqydLTlmLWKJ_yaYTd7q9qCQ1RD5gmRVQzlVsIITPCZeZefuGAkXKGncbTrweCp21TGiwKjok_ZnC8T2kQDHSdnu2bhrdcsM1NajtpsTGwoR-V31VqjM55IOe1QlRiEGRcnw2xvB0kgtv6drNnn0"/>
+</div>
+<div class="mt-8 flex gap-4">
+<button class="flex-1 bg-surface-container text-on-surface-variant py-4 rounded-2xl font-label-md hover:bg-surface-container-high transition-colors" onclick="window.location.reload()">Return to Dashboard</button>
+<button class="flex-1 bg-primary text-on-primary py-4 rounded-2xl font-label-md shadow-md active:scale-95 transition-transform">Live Tracking</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="bg-secondary-container text-on-secondary-container w-full py-stack-lg px-margin-desktop flex flex-col md:flex-row justify-between items-center gap-stack-md mt-12">
+<div class="font-headline-md text-headline-md font-bold text-primary">MealSaver</div>
+<div class="flex gap-8">
+<a class="font-label-md text-label-md hover:underline transition-all" href="#">Privacy Policy</a>
+<a class="font-label-md text-label-md hover:underline transition-all" href="#">Terms of Service</a>
+<a class="font-label-md text-label-md hover:underline transition-all" href="#">Contact Us</a>
+<a class="font-label-md text-label-md hover:underline transition-all" href="#">Careers</a>
+</div>
+<p class="font-label-md text-label-md">© 2024 MealSaver. Rescuing food, nourishing communities.</p>
+</footer>
+<script>
+        function openDetail(title) {
+            const overlay = document.getElementById('detail-overlay');
+            const titleEl = document.getElementById('detail-title');
+            const imgEl = document.getElementById('detail-img');
+
+            titleEl.innerText = title;
+            // Update image based on title (mock)
+            if(title.includes('Bakery')) imgEl.src = "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&q=80&w=800";
+            else if(title.includes('Breakfast')) imgEl.src = "https://images.unsplash.com/photo-1493770348161-369560ae357d?auto=format&fit=crop&q=80&w=800";
+            else imgEl.src = "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800";
+
+            overlay.classList.remove('hidden');
+            overlay.classList.add('flex');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeDetail() {
+            const overlay = document.getElementById('detail-overlay');
+            overlay.classList.remove('flex');
+            overlay.classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+
+        function acceptDonation() {
+            const btn = document.getElementById('accept-btn');
+            btn.innerHTML = '<span class="material-symbols-outlined animate-spin">sync</span> Processing...';
+            btn.disabled = true;
+
+            setTimeout(() => {
+                document.getElementById('detail-overlay').classList.add('hidden');
+                document.getElementById('dashboard-grid').classList.add('hidden');
+                document.querySelector('section').classList.add('hidden'); // Hide header
+                document.getElementById('confirmation-view').classList.remove('hidden');
+                document.body.style.overflow = 'auto';
+                window.scrollTo(0, 0);
+            }, 1000);
+        }
+
+        // Close on clicking outside the card
+        document.getElementById('detail-overlay').addEventListener('click', (e) => {
+            if(e.target === document.getElementById('detail-overlay')) {
+                closeDetail();
+            }
+        });
+    </script>
+</body></html>

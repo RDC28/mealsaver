@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+
+<html class="scroll-smooth" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>MealSaver | Save Food. Feed People.</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary": "#795600",
+                    "on-secondary": "#ffffff",
+                    "inverse-primary": "#63df7b",
+                    "tertiary-fixed": "#ffdea8",
+                    "secondary": "#59605c",
+                    "error": "#ba1a1a",
+                    "on-secondary-fixed-variant": "#414845",
+                    "on-tertiary-container": "#fffbff",
+                    "inverse-surface": "#2f3133",
+                    "inverse-on-surface": "#f0f0f3",
+                    "on-primary-fixed-variant": "#00531f",
+                    "background": "#f9f9fc",
+                    "surface-container-high": "#e8e8ea",
+                    "primary-fixed": "#80fc94",
+                    "on-error-container": "#93000a",
+                    "outline": "#6e7b6c",
+                    "on-secondary-fixed": "#161d1a",
+                    "surface-container-highest": "#e2e2e5",
+                    "outline-variant": "#bdcab9",
+                    "surface": "#f9f9fc",
+                    "surface-dim": "#dadadc",
+                    "secondary-fixed": "#dde4df",
+                    "on-secondary-container": "#5d6461",
+                    "on-primary-fixed": "#002108",
+                    "on-primary-container": "#f7fff2",
+                    "error-container": "#ffdad6",
+                    "on-tertiary-fixed": "#271900",
+                    "tertiary-container": "#986d00",
+                    "surface-bright": "#f9f9fc",
+                    "on-background": "#1a1c1e",
+                    "secondary-container": "#dae1dd",
+                    "on-surface-variant": "#3e4a3d",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-tint": "#006e2b",
+                    "surface-container": "#eeeef0",
+                    "on-tertiary-fixed-variant": "#5e4200",
+                    "primary": "#006b2a",
+                    "on-surface": "#1a1c1e",
+                    "on-primary": "#ffffff",
+                    "on-error": "#ffffff",
+                    "surface-variant": "#e2e2e5",
+                    "surface-container-low": "#f3f3f6",
+                    "secondary-fixed-dim": "#c1c8c4",
+                    "tertiary-fixed-dim": "#ffba20",
+                    "primary-fixed-dim": "#63df7b",
+                    "primary-container": "#008737",
+                    "on-tertiary": "#ffffff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px",
+                    "brand": "20px"
+            },
+            "spacing": {
+                    "stack-md": "16px",
+                    "stack-lg": "32px",
+                    "gutter": "24px",
+                    "margin-mobile": "16px",
+                    "stack-sm": "8px",
+                    "container-max": "1280px",
+                    "margin-desktop": "48px"
+            },
+            "fontFamily": {
+                    "body-md": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "label-sm": ["Inter"],
+                    "label-md": ["Inter"],
+                    "headline-md": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "headline-lg-mobile": ["Inter"]
+            },
+            "fontSize": {
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+                    "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "headline-lg": ["40px", {"lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "headline-lg-mobile": ["32px", {"lineHeight": "38px", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 24px;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        input:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px #80fc94;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md">
+<!-- TopNavBar -->
+<header class="bg-surface shadow-sm fixed top-0 left-0 right-0 z-50 h-20 flex items-center">
+<nav class="flex justify-between items-center w-full px-margin-desktop max-w-container-max mx-auto h-20">
+<div class="font-headline-md text-headline-md font-bold text-primary flex items-center gap-2">
+<span class="material-symbols-outlined" style="font-size: 32px;">eco</span>
+                MealSaver
+            </div>
+<div class="hidden md:flex items-center gap-stack-lg">
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#how-it-works">How it Works</a>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#impact">Impact</a>
+<button class="text-on-surface-variant font-body-md hover:text-primary transition-colors" onclick="toggleAuthModal('login')">Login</button>
+<button class="bg-primary text-on-primary px-6 py-3 rounded-brand font-label-md active:scale-95 transition-all shadow-sm" onclick="toggleAuthModal('register')">Get Started</button>
+</div>
+<!-- Mobile Menu Toggle -->
+<button class="md:hidden text-primary">
+<span class="material-symbols-outlined">menu</span>
+</button>
+</nav>
+</header>
+<main class="pt-20">
+<!-- Hero Section -->
+<section class="relative overflow-hidden px-margin-mobile md:px-margin-desktop py-20 lg:py-32">
+<div class="max-w-container-max mx-auto grid lg:grid-cols-2 gap-stack-lg items-center">
+<div class="z-10">
+<h1 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg mb-stack-md">
+                        Save Food. <span class="text-primary">Feed People.</span>
+</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant mb-stack-lg max-w-lg">
+                        Connect surplus food donors with nearby verified NGOs. A modern marketplace to reduce waste and nourish communities.
+                    </p>
+<div class="flex flex-wrap gap-4">
+<button class="bg-primary text-on-primary px-8 py-4 rounded-brand font-label-md shadow-lg hover:shadow-xl transition-all flex items-center gap-2 group">
+                            Donate Food
+                            <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</button>
+<button class="border-2 border-primary text-primary bg-primary-container/10 px-8 py-4 rounded-brand font-label-md hover:bg-primary-container/20 transition-all">
+                            Join NGO
+                        </button>
+</div>
+</div>
+<div class="relative">
+<div class="rounded-brand overflow-hidden shadow-2xl rotate-2 hover:rotate-0 transition-transform duration-500">
+<img alt="Community kitchen donation" class="w-full h-[500px] object-cover" data-alt="A brightly lit, modern community kitchen where diverse volunteers are joyfully organizing fresh produce like carrots, greens, and bread into clean, eco-friendly wooden crates. The atmosphere is warm and community-focused, with soft sunlight streaming through large windows. The overall aesthetic is minimalist and high-contrast, using a clean palette of whites and soft greens to evoke a sense of trustworthy and efficient altruism." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC_bAP7nC6-qaN17k36tORu0IqMs8TOwIB_62QnuIxrB0CWAtqVaSNwigGQvL7LhS444S1I_j3wStx82SExIsGKfaaeBNt24okDAEGI55D6GEq0cF2AQZ3dXtVR9QoJNoI3l6b2Wd3kZNh-g4YuAhnVNcS_ZdVTK9gyPAAjveilFglg2gsFVSFPmwPUcitvWy7_-Tft6BW7BgFzo5XUV0cu14D1k8Xs79KrGmgvH9mon0VinW-9fCEYjeOOFcChbLlq5s81r1Auv1TS"/>
+</div>
+<div class="absolute -bottom-6 -left-6 glass-card p-6 rounded-brand shadow-xl hidden md:block">
+<div class="flex items-center gap-4">
+<div class="bg-primary-fixed p-3 rounded-full text-on-primary-fixed">
+<span class="material-symbols-outlined">volunteer_activism</span>
+</div>
+<div>
+<p class="font-label-md text-primary">Active Now</p>
+<p class="font-body-md font-bold">12 Nearby NGOs</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Background Decoration -->
+<div class="absolute top-0 right-0 -z-10 w-1/2 h-full bg-secondary-container/20 rounded-l-[100px] blur-3xl"></div>
+</section>
+<!-- Process Section -->
+<section class="bg-surface-container-low py-20 px-margin-mobile md:px-margin-desktop" id="how-it-works">
+<div class="max-w-container-max mx-auto">
+<div class="text-center mb-16">
+<h2 class="font-headline-md text-headline-md mb-4">How it Works</h2>
+<p class="text-on-surface-variant max-w-2xl mx-auto">Five simple steps to make a global difference. We handle the logistics; you provide the kindness.</p>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-5 gap-stack-md relative">
+<!-- Steps -->
+<div class="flex flex-col items-center text-center group">
+<div class="w-20 h-20 rounded-full bg-white shadow-sm flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all mb-4">
+<span class="material-symbols-outlined text-[32px]">upload_file</span>
+</div>
+<h3 class="font-label-md mb-2">Upload Food</h3>
+<p class="text-label-sm text-on-surface-variant">Snap a photo and list items.</p>
+</div>
+<div class="flex flex-col items-center text-center group">
+<div class="w-20 h-20 rounded-full bg-white shadow-sm flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all mb-4">
+<span class="material-symbols-outlined text-[32px]">hub</span>
+</div>
+<h3 class="font-label-md mb-2">Match NGO</h3>
+<p class="text-label-sm text-on-surface-variant">We find the nearest receiver.</p>
+</div>
+<div class="flex flex-col items-center text-center group">
+<div class="w-20 h-20 rounded-full bg-white shadow-sm flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all mb-4">
+<span class="material-symbols-outlined text-[32px]">local_shipping</span>
+</div>
+<h3 class="font-label-md mb-2">Pickup</h3>
+<p class="text-label-sm text-on-surface-variant">Verified driver arrives.</p>
+</div>
+<div class="flex flex-col items-center text-center group">
+<div class="w-20 h-20 rounded-full bg-white shadow-sm flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all mb-4">
+<span class="material-symbols-outlined text-[32px]">handshake</span>
+</div>
+<h3 class="font-label-md mb-2">Delivery</h3>
+<p class="text-label-sm text-on-surface-variant">Food reaches those in need.</p>
+</div>
+<div class="flex flex-col items-center text-center group">
+<div class="w-20 h-20 rounded-full bg-white shadow-sm flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all mb-4">
+<span class="material-symbols-outlined text-[32px]">trending_up</span>
+</div>
+<h3 class="font-label-md mb-2">Impact</h3>
+<p class="text-label-sm text-on-surface-variant">See your contribution live.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Impact Metrics -->
+<section class="py-20 px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto" id="impact">
+<div class="grid md:grid-cols-3 gap-gutter">
+<div class="bg-white p-8 rounded-brand shadow-sm border border-outline-variant/30 flex flex-col items-center text-center hover:shadow-md transition-shadow">
+<div class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-6">
+<span class="material-symbols-outlined text-[40px]">restaurant</span>
+</div>
+<span class="font-headline-lg text-primary mb-2">1.2M+</span>
+<h4 class="font-label-md text-on-surface-variant uppercase tracking-wider">🍲 Meals Saved</h4>
+<p class="text-label-sm mt-4 text-on-surface-variant">Successfully redirected from waste to dinner tables.</p>
+</div>
+<div class="bg-white p-8 rounded-brand shadow-sm border border-outline-variant/30 flex flex-col items-center text-center hover:shadow-md transition-shadow">
+<div class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-6">
+<span class="material-symbols-outlined text-[40px]">recycling</span>
+</div>
+<span class="font-headline-lg text-primary mb-2">450 Tons</span>
+<h4 class="font-label-md text-on-surface-variant uppercase tracking-wider">♻ Food Waste Reduced</h4>
+<p class="text-label-sm mt-4 text-on-surface-variant">Carbon emissions saved by preventing landfill disposal.</p>
+</div>
+<div class="bg-white p-8 rounded-brand shadow-sm border border-outline-variant/30 flex flex-col items-center text-center hover:shadow-md transition-shadow">
+<div class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-6">
+<span class="material-symbols-outlined text-[40px]">home_work</span>
+</div>
+<span class="font-headline-lg text-primary mb-2">850+</span>
+<h4 class="font-label-md text-on-surface-variant uppercase tracking-wider">🏠 NGOs Active</h4>
+<p class="text-label-sm mt-4 text-on-surface-variant">Verified organizations receiving regular donations.</p>
+</div>
+</div>
+</section>
+<!-- Registration Triptych -->
+<section class="py-20 px-margin-mobile md:px-margin-desktop bg-secondary-container/10">
+<div class="max-w-container-max mx-auto text-center mb-16">
+<h2 class="font-headline-md text-headline-md">Get Started Today</h2>
+<p class="text-on-surface-variant">Select your path to join the MealSaver movement.</p>
+</div>
+<div class="max-w-4xl mx-auto grid md:grid-cols-2 gap-stack-lg">
+<!-- Donor Option -->
+<div class="bg-white p-10 rounded-brand shadow-lg border-2 border-transparent hover:border-primary transition-all flex flex-col items-center">
+<div class="mb-8">
+<span class="material-symbols-outlined text-[64px] text-primary">storefront</span>
+</div>
+<h3 class="font-headline-md mb-4 text-center">Register as Donor</h3>
+<p class="text-on-surface-variant text-center mb-8">For Restaurants, Bakeries, Cafes, and Groceries with surplus food.</p>
+<button class="w-full bg-primary text-on-primary py-4 rounded-brand font-label-md hover:opacity-90 transition-opacity" onclick="toggleAuthModal('register')">Become a Donor</button>
+<ul class="mt-8 space-y-3 w-full text-label-md text-on-surface-variant">
+<li class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-[20px]">check_circle</span> Tax deduction receipts</li>
+<li class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-[20px]">check_circle</span> Zero-waste branding</li>
+</ul>
+</div>
+<!-- NGO Option -->
+<div class="bg-white p-10 rounded-brand shadow-lg border-2 border-transparent hover:border-primary transition-all flex flex-col items-center">
+<div class="mb-8">
+<span class="material-symbols-outlined text-[64px] text-primary">volunteer_activism</span>
+</div>
+<h3 class="font-headline-md mb-4 text-center">Register as NGO</h3>
+<p class="text-on-surface-variant text-center mb-8">For Shelters, Community Kitchens, and Local Food Banks.</p>
+<button class="w-full border-2 border-primary text-primary py-4 rounded-brand font-label-md hover:bg-primary/5 transition-colors" onclick="toggleAuthModal('register')">Apply for Intake</button>
+<ul class="mt-8 space-y-3 w-full text-label-md text-on-surface-variant">
+<li class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-[20px]">check_circle</span> Consistent food supply</li>
+<li class="flex items-center gap-2"><span class="material-symbols-outlined text-primary text-[20px]">check_circle</span> Verified logistics network</li>
+</ul>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="w-full py-stack-lg px-margin-desktop flex flex-col md:flex-row justify-between items-center gap-stack-md bg-secondary-container dark:bg-on-secondary-fixed-variant">
+<div class="flex flex-col gap-2 items-center md:items-start">
+<div class="font-headline-md text-headline-md font-bold text-primary dark:text-primary-fixed-dim">MealSaver</div>
+<p class="font-label-md text-label-md text-on-secondary-container dark:text-secondary-fixed">© 2024 MealSaver. Rescuing food, nourishing communities.</p>
+</div>
+<div class="flex gap-stack-md">
+<a class="font-label-md text-label-md text-on-secondary-container dark:text-secondary-fixed hover:underline transition-all" href="#">Privacy Policy</a>
+<a class="font-label-md text-label-md text-on-secondary-container dark:text-secondary-fixed hover:underline transition-all" href="#">Terms of Service</a>
+<a class="font-label-md text-label-md text-on-secondary-container dark:text-secondary-fixed hover:underline transition-all" href="#">Contact Us</a>
+<a class="font-label-md text-label-md text-on-secondary-container dark:text-secondary-fixed hover:underline transition-all" href="#">Careers</a>
+</div>
+</footer>
+<!-- Auth Modal Overlay -->
+<div class="fixed inset-0 bg-on-background/40 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-margin-mobile" id="auth-modal">
+<div class="bg-white w-full max-w-md rounded-brand shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+<!-- Modal Header -->
+<div class="p-6 flex justify-between items-center border-b border-surface-container">
+<h3 class="font-headline-md" id="modal-title">Login</h3>
+<button class="text-on-surface-variant hover:text-on-surface" onclick="toggleAuthModal()">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<!-- Login Content -->
+<div class="p-8" id="login-form">
+<form class="space-y-6">
+<div>
+<label class="block font-label-md text-on-surface-variant mb-2">Email Address</label>
+<input class="w-full px-4 py-3 rounded-brand border border-outline-variant bg-surface-container-lowest focus:border-primary transition-colors" placeholder="name@company.com" type="email"/>
+</div>
+<div>
+<label class="block font-label-md text-on-surface-variant mb-2">Password</label>
+<input class="w-full px-4 py-3 rounded-brand border border-outline-variant bg-surface-container-lowest focus:border-primary transition-colors" placeholder="••••••••" type="password"/>
+</div>
+<div>
+<label class="block font-label-md text-on-surface-variant mb-2">Role</label>
+<div class="grid grid-cols-3 gap-2">
+<label class="cursor-pointer">
+<input checked="" class="hidden peer" name="role" type="radio" value="donor"/>
+<div class="p-2 text-center rounded-brand border border-outline-variant peer-checked:border-primary peer-checked:bg-primary-container/10 transition-all">
+<span class="text-label-sm">Donor</span>
+</div>
+</label>
+<label class="cursor-pointer">
+<input class="hidden peer" name="role" type="radio" value="ngo"/>
+<div class="p-2 text-center rounded-brand border border-outline-variant peer-checked:border-primary peer-checked:bg-primary-container/10 transition-all">
+<span class="text-label-sm">NGO</span>
+</div>
+</label>
+<label class="cursor-pointer">
+<input class="hidden peer" name="role" type="radio" value="admin"/>
+<div class="p-2 text-center rounded-brand border border-outline-variant peer-checked:border-primary peer-checked:bg-primary-container/10 transition-all">
+<span class="text-label-sm">Admin</span>
+</div>
+</label>
+</div>
+</div>
+<button class="w-full bg-primary text-on-primary py-4 rounded-brand font-label-md shadow-lg active:scale-95 transition-all" type="submit">Sign In</button>
+<p class="text-center text-label-md text-on-surface-variant">Don't have an account? <button class="text-primary font-bold" onclick="toggleAuthModal('register')" type="button">Register</button></p>
+</form>
+</div>
+<!-- Register Content -->
+<div class="p-8 hidden" id="register-form">
+<div class="space-y-4">
+<button class="w-full p-4 border border-outline-variant rounded-brand flex items-center gap-4 hover:bg-surface-container transition-colors group">
+<span class="material-symbols-outlined text-primary group-hover:scale-110 transition-transform">restaurant</span>
+<div class="text-left">
+<p class="font-label-md">Register as Donor</p>
+<p class="text-label-sm text-on-surface-variant">For businesses with surplus food</p>
+</div>
+</button>
+<button class="w-full p-4 border border-outline-variant rounded-brand flex items-center gap-4 hover:bg-surface-container transition-colors group">
+<span class="material-symbols-outlined text-primary group-hover:scale-110 transition-transform">favorite</span>
+<div class="text-left">
+<p class="font-label-md">Register as NGO</p>
+<p class="text-label-sm text-on-surface-variant">For charitable food distributions</p>
+</div>
+</button>
+<p class="text-center text-label-md text-on-surface-variant mt-6">Already have an account? <button class="text-primary font-bold" onclick="toggleAuthModal('login')" type="button">Login</button></p>
+</div>
+</div>
+</div>
+</div>
+<script>
+        function toggleAuthModal(view = null) {
+            const modal = document.getElementById('auth-modal');
+            const loginForm = document.getElementById('login-form');
+            const registerForm = document.getElementById('register-form');
+            const title = document.getElementById('modal-title');
+
+            if (view) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+                if (view === 'login') {
+                    loginForm.classList.remove('hidden');
+                    registerForm.classList.add('hidden');
+                    title.textContent = 'Login';
+                } else {
+                    loginForm.classList.add('hidden');
+                    registerForm.classList.remove('hidden');
+                    title.textContent = 'Join MealSaver';
+                }
+            } else {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        }
+
+        // Close modal on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') toggleAuthModal();
+        });
+
+        // Simple scroll reveal effect for impact cards
+        const observerOptions = {
+            threshold: 0.1
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('translate-y-0', 'opacity-100');
+                    entry.target.classList.remove('translate-y-10', 'opacity-0');
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('#impact > div > div').forEach(card => {
+            card.classList.add('transform', 'transition-all', 'duration-700', 'translate-y-10', 'opacity-0');
+            observer.observe(card);
+        });
+    </script>
+</body></html>

@@ -1,15 +1,13 @@
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Inter } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
-const _geist = Geist({ subsets: ["latin"] });
-const _geistMono = Geist_Mono({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans" })
 
 export const metadata: Metadata = {
-  title: 'MealSaver - Rescue Surplus Food',
-  description: 'Connect food donors with NGOs to reduce waste and feed more people',
-  generator: 'v0.app',
+  title: 'MealSaver - Save Food. Feed People.',
+  description: 'Connect surplus food donors with nearby verified NGOs to reduce waste and nourish communities.',
   icons: {
     icon: [
       {
@@ -36,7 +34,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="bg-background">
-      <body className="font-sans antialiased bg-background">
+      <head>
+        <link
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body className={`${inter.variable} font-sans antialiased bg-background`}>
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>

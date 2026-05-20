@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+
+<html class="scroll-smooth" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>MealSaver | Impact Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 24px;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(226, 232, 240, 0.5);
+        }
+    </style>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary": "#795600",
+                    "on-secondary": "#ffffff",
+                    "inverse-primary": "#63df7b",
+                    "tertiary-fixed": "#ffdea8",
+                    "secondary": "#59605c",
+                    "error": "#ba1a1a",
+                    "on-secondary-fixed-variant": "#414845",
+                    "on-tertiary-container": "#fffbff",
+                    "inverse-surface": "#2f3133",
+                    "inverse-on-surface": "#f0f0f3",
+                    "on-primary-fixed-variant": "#00531f",
+                    "background": "#f9f9fc",
+                    "surface-container-high": "#e8e8ea",
+                    "primary-fixed": "#80fc94",
+                    "on-error-container": "#93000a",
+                    "outline": "#6e7b6c",
+                    "on-secondary-fixed": "#161d1a",
+                    "surface-container-highest": "#e2e2e5",
+                    "outline-variant": "#bdcab9",
+                    "surface": "#f9f9fc",
+                    "surface-dim": "#dadadc",
+                    "secondary-fixed": "#dde4df",
+                    "on-secondary-container": "#5d6461",
+                    "on-primary-fixed": "#002108",
+                    "on-primary-container": "#f7fff2",
+                    "error-container": "#ffdad6",
+                    "on-tertiary-fixed": "#271900",
+                    "tertiary-container": "#986d00",
+                    "surface-bright": "#f9f9fc",
+                    "on-background": "#1a1c1e",
+                    "secondary-container": "#dae1dd",
+                    "on-surface-variant": "#3e4a3d",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-tint": "#006e2b",
+                    "surface-container": "#eeeef0",
+                    "on-tertiary-fixed-variant": "#5e4200",
+                    "primary": "#006b2a",
+                    "on-surface": "#1a1c1e",
+                    "on-primary": "#ffffff",
+                    "on-error": "#ffffff",
+                    "surface-variant": "#e2e2e5",
+                    "surface-container-low": "#f3f3f6",
+                    "secondary-fixed-dim": "#c1c8c4",
+                    "tertiary-fixed-dim": "#ffba20",
+                    "primary-fixed-dim": "#63df7b",
+                    "primary-container": "#008737",
+                    "on-tertiary": "#ffffff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "stack-md": "16px",
+                    "stack-lg": "32px",
+                    "gutter": "24px",
+                    "margin-mobile": "16px",
+                    "stack-sm": "8px",
+                    "container-max": "1280px",
+                    "margin-desktop": "48px"
+            },
+            "fontFamily": {
+                    "body-md": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "label-sm": ["Inter"],
+                    "label-md": ["Inter"],
+                    "headline-md": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "headline-lg-mobile": ["Inter"]
+            },
+            "fontSize": {
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+                    "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "headline-lg": ["40px", {"lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "headline-lg-mobile": ["32px", {"lineHeight": "38px", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen">
+<!-- Top Navigation -->
+<nav class="bg-surface dark:bg-surface-dim shadow-sm flex justify-between items-center w-full px-margin-desktop max-w-container-max mx-auto h-20 fixed top-0 z-50">
+<div class="font-headline-md text-headline-md font-bold text-primary dark:text-primary-fixed">MealSaver</div>
+<div class="hidden md:flex gap-stack-lg items-center">
+<a class="text-on-surface-variant dark:text-on-secondary-fixed-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors font-body-md text-body-md" href="#">How it Works</a>
+<a class="text-on-surface-variant dark:text-on-secondary-fixed-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors font-body-md text-body-md" href="#">For Donors</a>
+<a class="text-on-surface-variant dark:text-on-secondary-fixed-variant hover:text-primary dark:hover:text-primary-fixed-dim transition-colors font-body-md text-body-md" href="#">For NGOs</a>
+<a class="text-primary font-bold border-b-2 border-primary pb-1 font-body-md text-body-md" href="#">Impact</a>
+</div>
+<button class="bg-primary text-on-primary px-6 py-3 rounded-xl font-label-md active:scale-95 transition-transform duration-200">Get Started</button>
+</nav>
+<main class="pt-32 pb-stack-lg px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto">
+<!-- Impact Dashboard Section -->
+<section class="mb-12">
+<header class="mb-stack-lg">
+<h1 class="font-headline-lg text-headline-lg mb-2">Community Impact</h1>
+<p class="text-on-surface-variant font-body-lg text-body-lg">Real-time statistics on our collective food rescue mission.</p>
+</header>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter mb-12">
+<!-- Impact Cards -->
+<div class="bg-surface-container-lowest p-6 rounded-2xl shadow-sm border border-outline-variant flex flex-col items-center text-center">
+<span class="material-symbols-outlined text-primary text-4xl mb-2" data-icon="restaurant" data-weight="fill" style="font-variation-settings: 'FILL' 1;">restaurant</span>
+<h3 class="text-on-surface-variant font-label-md text-label-md">Meals Saved</h3>
+<p class="font-headline-lg text-headline-lg text-primary">12,482</p>
+</div>
+<div class="bg-surface-container-lowest p-6 rounded-2xl shadow-sm border border-outline-variant flex flex-col items-center text-center">
+<span class="material-symbols-outlined text-tertiary text-4xl mb-2" data-icon="delete_outline">delete_outline</span>
+<h3 class="text-on-surface-variant font-label-md text-label-md">Waste Reduced</h3>
+<p class="font-headline-lg text-headline-lg text-tertiary">4.2 Tons</p>
+</div>
+<div class="bg-surface-container-lowest p-6 rounded-2xl shadow-sm border border-outline-variant flex flex-col items-center text-center">
+<span class="material-symbols-outlined text-primary text-4xl mb-2" data-icon="co2" data-weight="fill" style="font-variation-settings: 'FILL' 1;">co2</span>
+<h3 class="text-on-surface-variant font-label-md text-label-md">CO2 Prevented</h3>
+<p class="font-headline-lg text-headline-lg text-primary">8.1 Tons</p>
+</div>
+<div class="bg-surface-container-lowest p-6 rounded-2xl shadow-sm border border-outline-variant flex flex-col items-center text-center">
+<span class="material-symbols-outlined text-secondary text-4xl mb-2" data-icon="groups" data-weight="fill" style="font-variation-settings: 'FILL' 1;">groups</span>
+<h3 class="text-on-surface-variant font-label-md text-label-md">Families Helped</h3>
+<p class="font-headline-lg text-headline-lg text-secondary">312</p>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-8 rounded-2xl border border-outline-variant shadow-sm mb-12">
+<div class="flex justify-between items-end mb-6">
+<div>
+<h2 class="font-headline-md text-headline-md">Impact Velocity</h2>
+<p class="text-on-surface-variant font-body-md text-body-md">Rescued volume over the last 30 days</p>
+</div>
+<div class="flex gap-2">
+<span class="px-3 py-1 bg-primary-container text-on-primary-container rounded-full text-label-sm font-label-sm">+12% vs last month</span>
+</div>
+</div>
+<div class="h-64 w-full flex items-end gap-2 px-2">
+<!-- Simple CSS Chart -->
+<div class="bg-primary-fixed-dim w-full rounded-t-lg transition-all hover:bg-primary" style="height: 40%"></div>
+<div class="bg-primary-fixed-dim w-full rounded-t-lg transition-all hover:bg-primary" style="height: 55%"></div>
+<div class="bg-primary-fixed-dim w-full rounded-t-lg transition-all hover:bg-primary" style="height: 45%"></div>
+<div class="bg-primary-fixed-dim w-full rounded-t-lg transition-all hover:bg-primary" style="height: 70%"></div>
+<div class="bg-primary-fixed-dim w-full rounded-t-lg transition-all hover:bg-primary" style="height: 85%"></div>
+<div class="bg-primary-fixed-dim w-full rounded-t-lg transition-all hover:bg-primary" style="height: 60%"></div>
+<div class="bg-primary-fixed-dim w-full rounded-t-lg transition-all hover:bg-primary" style="height: 95%"></div>
+</div>
+<div class="flex justify-between mt-4 text-on-surface-variant font-label-sm text-label-sm">
+<span>Week 1</span>
+<span>Week 2</span>
+<span>Week 3</span>
+<span>Week 4</span>
+</div>
+</div>
+</section>
+<!-- Main Task Area: Pickup & Verification -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-gutter items-start">
+<!-- Logistics Flow -->
+<div class="lg:col-span-2 space-y-gutter">
+<h2 class="font-headline-md text-headline-md">Active Rescue Operations</h2>
+<!-- Pickup Cards -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+<!-- Assigned -->
+<div class="bg-surface-container-low p-5 rounded-2xl border-2 border-primary flex flex-col gap-3 relative overflow-hidden">
+<div class="flex justify-between items-start">
+<span class="material-symbols-outlined text-primary text-3xl" data-icon="assignment_ind">assignment_ind</span>
+<span class="bg-primary text-on-primary text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-bold">Current</span>
+</div>
+<div>
+<h4 class="font-label-md text-label-md">Assigned</h4>
+<p class="text-on-surface-variant text-label-sm">Whole Foods Market</p>
+</div>
+<div class="mt-2 pt-2 border-t border-outline-variant flex items-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="schedule">schedule</span>
+<span class="text-label-sm">Pickup by 6:00 PM</span>
+</div>
+</div>
+<!-- Picked Up -->
+<div class="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant opacity-60 flex flex-col gap-3">
+<span class="material-symbols-outlined text-on-surface-variant text-3xl" data-icon="local_shipping">local_shipping</span>
+<div>
+<h4 class="font-label-md text-label-md">In Transit</h4>
+<p class="text-on-surface-variant text-label-sm">En route to Food Bank</p>
+</div>
+</div>
+<!-- Delivered -->
+<div class="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant opacity-60 flex flex-col gap-3">
+<span class="material-symbols-outlined text-on-surface-variant text-3xl" data-icon="check_circle">check_circle</span>
+<div>
+<h4 class="font-label-md text-label-md">Completed</h4>
+<p class="text-on-surface-variant text-label-sm">Awaiting Next Trip</p>
+</div>
+</div>
+</div>
+<!-- Verification Checklist -->
+<div class="bg-surface-container-lowest p-8 rounded-2xl border border-outline-variant shadow-sm" id="verification-panel">
+<div class="flex items-center gap-4 mb-8">
+<div class="w-12 h-12 rounded-xl bg-primary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary-container" data-icon="fact_check">fact_check</span>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md">Safety Verification</h3>
+<p class="text-on-surface-variant font-body-md text-body-md">Mandatory checks before handover</p>
+</div>
+</div>
+<div class="space-y-4">
+<label class="flex items-center p-4 rounded-xl border border-outline-variant hover:bg-surface-container-low transition-colors cursor-pointer group">
+<input class="w-6 h-6 rounded-lg text-primary focus:ring-primary border-outline transition-all mr-4" type="checkbox"/>
+<div class="flex-1">
+<p class="font-label-md text-label-md">Quantity Matches Order</p>
+<p class="text-label-sm text-on-surface-variant">Verify items count against digital manifest</p>
+</div>
+<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors" data-icon="inventory_2">inventory_2</span>
+</label>
+<label class="flex items-center p-4 rounded-xl border border-outline-variant hover:bg-surface-container-low transition-colors cursor-pointer group">
+<input class="w-6 h-6 rounded-lg text-primary focus:ring-primary border-outline transition-all mr-4" type="checkbox"/>
+<div class="flex-1">
+<p class="font-label-md text-label-md">Packaging Integrity</p>
+<p class="text-label-sm text-on-surface-variant">Check for leaks, tears or broken seals</p>
+</div>
+<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors" data-icon="package_2">package_2</span>
+</label>
+<label class="flex items-center p-4 rounded-xl border border-outline-variant hover:bg-surface-container-low transition-colors cursor-pointer group">
+<input class="w-6 h-6 rounded-lg text-primary focus:ring-primary border-outline transition-all mr-4" type="checkbox"/>
+<div class="flex-1">
+<p class="font-label-md text-label-md">Food Safety Protocol</p>
+<p class="text-label-sm text-on-surface-variant">Temperature confirmed and no contamination risks</p>
+</div>
+<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors" data-icon="health_and_safety">health_and_safety</span>
+</label>
+</div>
+<button class="mt-8 w-full bg-primary text-on-primary py-4 rounded-2xl font-bold hover:shadow-lg transition-all active:scale-95" onclick="showSuccess()">Complete Delivery</button>
+</div>
+<!-- Success State (Hidden by default) -->
+<div class="hidden bg-surface-container-lowest p-12 rounded-2xl border-2 border-primary-container text-center animate-in fade-in zoom-in duration-500" id="success-state">
+<div class="w-32 h-32 bg-primary-fixed-dim rounded-full mx-auto flex items-center justify-center mb-6">
+<span class="material-symbols-outlined text-primary text-6xl" data-icon="celebration" data-weight="fill" style="font-variation-settings: 'FILL' 1;">celebration</span>
+</div>
+<h2 class="font-headline-lg text-headline-lg mb-4">Delivery Complete 🎉</h2>
+<p class="text-on-surface-variant font-body-lg text-body-lg mb-8">You just rescued 14kg of food for the local community bank.</p>
+<div class="flex justify-center gap-4">
+<button class="px-8 py-3 bg-primary text-on-primary rounded-xl font-label-md" onclick="location.reload()">Done</button>
+<button class="px-8 py-3 border-2 border-primary text-primary rounded-xl font-label-md">Share Impact</button>
+</div>
+</div>
+</div>
+<!-- Admin Sidebar -->
+<div class="space-y-gutter">
+<h2 class="font-headline-md text-headline-md">Admin Overview</h2>
+<!-- Emergency Alert -->
+<div class="bg-error-container p-4 rounded-2xl flex gap-4 items-start border border-error animate-pulse">
+<span class="material-symbols-outlined text-error" data-icon="report">report</span>
+<div>
+<h4 class="font-label-md text-label-md text-on-error-container">Emergency: Short Shelf Life</h4>
+<p class="text-label-sm text-on-error-container opacity-90">30kg of fresh dairy expiring in 4 hours at Central Hub.</p>
+<button class="mt-2 text-label-sm font-bold underline text-on-error-container">Deploy Courier</button>
+</div>
+</div>
+<!-- Pending Verifications -->
+<div class="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant">
+<h3 class="font-label-md text-label-md mb-4 flex items-center justify-between">
+                        Pending Verifications
+                        <span class="bg-tertiary-fixed text-on-tertiary-fixed text-[10px] px-2 py-0.5 rounded-full">3 NEW</span>
+</h3>
+<div class="space-y-4">
+<!-- Admin Profile Item -->
+<div class="flex items-center gap-3">
+<img class="w-10 h-10 rounded-full object-cover" data-alt="A professional woman with a warm smile, wearing a volunteer badge, in a brightly lit community center setting. High-quality photography, soft natural lighting, modern minimalist aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDMMukj1nnw-lebgtQV8CRg1yqjx8bnrOQ02VvjIBHSvCfuPwHsN7oHHS3Ues9SXZ8uaJTo_yIlEu2YoeS2h9fRpQ5JbqTCKwjHLGtyV8aac7_L0VJoFjZ5_XmjOmBpMUrmBhIacb6Tf-ovzKOvAOkjmJV6BSCtc-d_UKf19gp7zTaDxyd9ad77dnfUKWEeKY8BgQ6h09IY3S6dUDV6Pq2lK_SF9SOQv-pOaxyPuxI4U6Znxghl6dspuT04lHRDTc04AYf8Egx3JkW9"/>
+<div class="flex-1">
+<p class="text-label-md font-bold">Sarah Chen</p>
+<p class="text-[10px] text-on-surface-variant uppercase">New Volunteer</p>
+</div>
+<button class="bg-secondary-container text-on-secondary-container px-3 py-1 rounded-lg text-label-sm hover:bg-primary hover:text-on-primary transition-colors">Verify</button>
+</div>
+<div class="flex items-center gap-3">
+<img class="w-10 h-10 rounded-full object-cover" data-alt="A friendly man with glasses in a professional business casual outfit, smiling warmly against a clean white gallery wall. Bright, high-key lighting, modern professional photography, soft shadows." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDTGq-aWPAmpnewMK7FzJV-XhsVMgkqRbs-m-qqX7pEGIVHYx-rmDASd0kexKMldgDMS-nyfJ0SVH3RPccRmDbzzsYM1IBZxca_hTocYHofekki8jJ3gp_zb20K2Cjm3yej6xWiZfB2m4ERttRmPvW89AmaHCbQ9-krMraghtqfNKsA06QV5SByW56Pg1ngde6OxNosKI20nTqLyhwyizcNYKHTDkf7HruAuWcahHAW4tifv4H2JtTcVzVQHXbCKIgjKJgrKHEiRTOI"/>
+<div class="flex-1">
+<p class="text-label-md font-bold">Marcus Thorne</p>
+<p class="text-[10px] text-on-surface-variant uppercase">Store Manager</p>
+</div>
+<button class="bg-secondary-container text-on-secondary-container px-3 py-1 rounded-lg text-label-sm hover:bg-primary hover:text-on-primary transition-colors">Verify</button>
+</div>
+</div>
+</div>
+<!-- Active Donations -->
+<div class="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant">
+<h3 class="font-label-md text-label-md mb-4">Active Donations</h3>
+<div class="space-y-3">
+<div class="flex items-center gap-3 p-3 bg-surface-container-low rounded-xl">
+<div class="w-8 h-8 rounded bg-primary-fixed flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-sm" data-icon="bakery_dining">bakery_dining</span>
+</div>
+<div class="flex-1">
+<p class="text-label-sm font-bold">Bakery Bundle</p>
+<p class="text-[10px] text-on-surface-variant">12kg • Morning Fresh</p>
+</div>
+<div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+</div>
+<div class="flex items-center gap-3 p-3 bg-surface-container-low rounded-xl">
+<div class="w-8 h-8 rounded bg-tertiary-fixed flex items-center justify-center">
+<span class="material-symbols-outlined text-tertiary text-sm" data-icon="egg">egg</span>
+</div>
+<div class="flex-1">
+<p class="text-label-sm font-bold">Dairy Supply</p>
+<p class="text-[10px] text-on-surface-variant">8kg • Chilled</p>
+</div>
+<div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="w-full py-stack-lg px-margin-desktop flex flex-col md:flex-row justify-between items-center gap-stack-md bg-secondary-container dark:bg-on-secondary-fixed-variant text-on-secondary-container dark:text-secondary-fixed mt-20">
+<div class="flex flex-col items-center md:items-start">
+<div class="font-headline-md text-headline-md font-bold text-primary dark:text-primary-fixed-dim">MealSaver</div>
+<p class="font-label-md text-label-md mt-2">© 2024 MealSaver. Rescuing food, nourishing communities.</p>
+</div>
+<div class="flex gap-stack-lg flex-wrap justify-center">
+<a class="font-label-md text-label-md hover:underline transition-all opacity-80 hover:opacity-100" href="#">Privacy Policy</a>
+<a class="font-label-md text-label-md hover:underline transition-all opacity-80 hover:opacity-100" href="#">Terms of Service</a>
+<a class="font-label-md text-label-md hover:underline transition-all opacity-80 hover:opacity-100" href="#">Contact Us</a>
+<a class="font-label-md text-label-md hover:underline transition-all opacity-80 hover:opacity-100" href="#">Careers</a>
+</div>
+</footer>
+<script>
+        function showSuccess() {
+            const panel = document.getElementById('verification-panel');
+            const success = document.getElementById('success-state');
+            
+            panel.classList.add('hidden');
+            success.classList.remove('hidden');
+            
+            // Trigger confetti effect or something simple
+            console.log('Delivery Confirmed');
+        }
+
+        // Simple observer for chart animation
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('scale-y-100');
+                }
+            });
+        });
+    </script>
+</body></html>
