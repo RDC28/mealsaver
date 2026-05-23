@@ -2,14 +2,145 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { Eye, EyeOff, Upload, UserCircle2, CheckCircle2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Eye, EyeOff, UserCircle2, CheckCircle2, Loader2, AlertCircle } from 'lucide-react'
 import { Logo } from '@/components/mealsaver/logo'
 
+type FormState = {
+  business_name: string
+  business_type: string
+  full_name: string
+  phone: string
+  email: string
+  address: string
+  city: string
+  food_license_number: string
+  password: string
+  confirm_password: string
+}
+
+const INITIAL: FormState = {
+  business_name: '',
+  business_type: 'restaurant',
+  full_name: '',
+  phone: '',
+  email: '',
+  address: '',
+  city: '',
+  food_license_number: '',
+  password: '',
+  confirm_password: '',
+}
+
 export default function DonorRegisterPage() {
+  const router = useRouter()
+
+  const [form, setForm] = useState<FormState>(INITIAL)
   const [showPw, setShowPw] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [agreed, setAgreed] = useState(false)
-  const [fileName, setFileName] = useState('food_license_greenleaf.pdf')
+  const [fileName, setFileName] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [emailSent, setEmailSent] = useState(false)
+
+  // Controlled input helper
+  const field = (key: keyof FormState) => ({
+    value: form[key],
+    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+      setForm(prev => ({ ...prev, [key]: e.target.value })),
+  })
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+
+    // ── Client-side validation
+    if (!form.full_name.trim())        return setError('Please enter your name')
+    if (!form.email.trim())            return setError('Please enter your email')
+    if (!form.business_name.trim())    return setError('Please enter your business name')
+    if (!form.address.trim())          return setError('Please enter your address')
+    if (!form.city.trim())             return setError('Please enter your city')
+    if (form.password.length < 8)      return setError('Password must be at least 8 characters')
+    if (form.password !== form.confirm_password) return setError('Passwords do not match')
+    if (!agreed)                       return setError('Please agree to the terms to continue')
+
+    setLoading(true)
+
+    try {
+      // ── Step 1: Create auth account
+      const signupRes = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: form.email.trim(),
+          password: form.password,
+          full_name: form.full_name.trim(),
+          phone: form.phone ? `+91${form.phone.replace(/\D/g, '')}` : undefined,
+          role: 'donor',
+        }),
+      })
+
+      const signupJson = await safeJson(signupRes)
+      if (!signupRes.ok) {
+        setError(signupJson?.error?.message ?? `Signup failed (${signupRes.status})`)
+        return
+      }
+
+      // ── Step 2: Create donor business profile
+      const profileRes = await fetch('/api/donor/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          business_name: form.business_name.trim(),
+          business_type: form.business_type,
+          phone: form.phone ? `+91${form.phone.replace(/\D/g, '')}` : undefined,
+          address: form.address.trim(),
+          city: form.city.trim(),
+          food_license_number: form.food_license_number.trim() || undefined,
+        }),
+      })
+
+      if (!profileRes.ok) {
+        // Account created but session not active yet (email confirmation required)
+        setEmailSent(true)
+        return
+      }
+
+      // ── Success — go to dashboard
+      router.push('/donor/dashboard')
+
+    } catch (e) {
+      console.error('[DonorRegister]', e)
+      setError('Something went wrong. Open DevTools → Console for details.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // ── Email confirmation screen
+  if (emailSent) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4">
+        <div className="w-full max-w-md rounded-2xl border border-border bg-card px-8 py-10 text-center shadow-sm">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-green-50">
+            <CheckCircle2 size={28} className="text-primary" />
+          </div>
+          <h2 className="mb-2 text-xl font-bold text-foreground">Check your email</h2>
+          <p className="mb-6 text-sm text-muted-foreground">
+            We sent a confirmation link to <strong>{form.email}</strong>.<br />
+            Click it to activate your account, then log in.
+          </p>
+          <Link
+            href="/login"
+            className="block w-full rounded-lg bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+          >
+            Go to Login
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background px-4 py-12">
@@ -27,22 +158,33 @@ export default function DonorRegisterPage() {
 
           <h1 className="mb-6 text-xl font-bold text-foreground">Donor Registration Form</h1>
 
-          <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
+          {/* Error banner */}
+          {error && (
+            <div className="mb-5 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              <AlertCircle size={16} className="mt-0.5 shrink-0" />
+              {error}
+            </div>
+          )}
+
+          <form className="space-y-5" onSubmit={handleSubmit}>
             {/* Row 1 */}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Field label="Business Name" required>
                 <input
                   type="text"
-                  defaultValue="Green Leaf Café"
+                  placeholder="e.g. Green Leaf Café"
                   className={inputCls}
+                  {...field('business_name')}
                 />
               </Field>
               <Field label="Business Type" required>
-                <select className={inputCls} defaultValue="restaurant">
+                <select className={inputCls} {...field('business_type')}>
                   <option value="restaurant">Restaurant / Café</option>
                   <option value="bakery">Bakery</option>
-                  <option value="hotel">Hotel</option>
-                  <option value="corporate">Corporate Canteen</option>
+                  <option value="caterer">Caterer / Hotel</option>
+                  <option value="supermarket">Supermarket / Grocery</option>
+                  <option value="vegetable_vendor">Vegetable Vendor</option>
+                  <option value="individual">Individual</option>
                   <option value="other">Other</option>
                 </select>
               </Field>
@@ -51,7 +193,12 @@ export default function DonorRegisterPage() {
             {/* Row 2 */}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Field label="Owner / Contact Person" required>
-                <input type="text" defaultValue="Rahul Sharma" className={inputCls} />
+                <input
+                  type="text"
+                  placeholder="Full name"
+                  className={inputCls}
+                  {...field('full_name')}
+                />
               </Field>
               <Field label="Phone Number" required>
                 <div className="flex">
@@ -60,8 +207,9 @@ export default function DonorRegisterPage() {
                   </span>
                   <input
                     type="tel"
-                    defaultValue="98765 43210"
+                    placeholder="98765 43210"
                     className={inputCls + ' rounded-l-none'}
+                    {...field('phone')}
                   />
                 </div>
               </Field>
@@ -71,8 +219,9 @@ export default function DonorRegisterPage() {
             <Field label="Email" required>
               <input
                 type="email"
-                defaultValue="greenleafcafe@gmail.com"
+                placeholder="you@example.com"
                 className={inputCls}
+                {...field('email')}
               />
             </Field>
 
@@ -80,21 +229,28 @@ export default function DonorRegisterPage() {
             <Field label="Business Address" required>
               <input
                 type="text"
-                defaultValue="12, 3rd Cross, Koramangala 4th Block"
+                placeholder="Street address"
                 className={inputCls}
+                {...field('address')}
               />
             </Field>
 
             {/* Row 3 */}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Field label="City / Area" required>
-                <input type="text" defaultValue="Koramangala" className={inputCls} />
-              </Field>
-              <Field label="Food License Number" required>
                 <input
                   type="text"
-                  defaultValue="LIC/KA/2024/123456"
+                  placeholder="e.g. Bengaluru"
                   className={inputCls}
+                  {...field('city')}
+                />
+              </Field>
+              <Field label="Food License Number">
+                <input
+                  type="text"
+                  placeholder="FSSAI / LIC number (optional)"
+                  className={inputCls}
+                  {...field('food_license_number')}
                 />
               </Field>
             </div>
@@ -105,13 +261,14 @@ export default function DonorRegisterPage() {
                 <div className="relative">
                   <input
                     type={showPw ? 'text' : 'password'}
-                    defaultValue="••••••••••"
+                    placeholder="Min. 8 characters"
                     className={inputCls + ' pr-10'}
+                    {...field('password')}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPw(!showPw)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   >
                     {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
@@ -121,13 +278,14 @@ export default function DonorRegisterPage() {
                 <div className="relative">
                   <input
                     type={showConfirm ? 'text' : 'password'}
-                    defaultValue="••••••••••"
+                    placeholder="Repeat password"
                     className={inputCls + ' pr-10'}
+                    {...field('confirm_password')}
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirm(!showConfirm)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   >
                     {showConfirm ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
@@ -136,17 +294,19 @@ export default function DonorRegisterPage() {
             </div>
 
             {/* Document upload */}
-            <Field label="Food License / Verification Document" required>
+            <Field label="Food License / Verification Document">
               <div className="flex items-center gap-3 rounded-lg border border-border bg-background px-4 py-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-50">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-50">
                   <span className="text-xs font-bold text-red-600">PDF</span>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="truncate text-sm font-medium text-foreground">{fileName}</p>
-                  <p className="text-xs text-muted-foreground">245 KB</p>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {fileName ?? 'No file chosen'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">PDF, JPG or PNG – Max 5MB</p>
                 </div>
                 <label className="cursor-pointer rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary">
-                  Change File
+                  Browse
                   <input
                     type="file"
                     className="hidden"
@@ -157,9 +317,6 @@ export default function DonorRegisterPage() {
                   />
                 </label>
               </div>
-              <p className="mt-1.5 text-xs text-muted-foreground">
-                Upload valid food license or FSSAI certificate (PDF, JPG, PNG – Max 5MB)
-              </p>
             </Field>
 
             {/* Agreement */}
@@ -176,9 +333,11 @@ export default function DonorRegisterPage() {
             {/* Submit */}
             <button
               type="submit"
-              className="w-full rounded-lg bg-primary py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+              disabled={loading}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Create Donor Account
+              {loading && <Loader2 size={16} className="animate-spin" />}
+              {loading ? 'Creating account…' : 'Create Donor Account'}
             </button>
 
             <p className="text-center text-sm text-muted-foreground">
@@ -192,6 +351,17 @@ export default function DonorRegisterPage() {
       </div>
     </div>
   )
+}
+
+// Safely parse JSON — returns null if the response is HTML (e.g. Next.js error page)
+async function safeJson(res: Response) {
+  try {
+    return await res.json()
+  } catch {
+    const text = await res.text().catch(() => '')
+    console.error('API returned non-JSON response:', res.status, text.slice(0, 300))
+    return null
+  }
 }
 
 const inputCls =

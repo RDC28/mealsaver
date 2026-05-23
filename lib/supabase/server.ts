@@ -1,0 +1,65 @@
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
+import type { Database } from './types'
+
+/**
+ * Supabase client for use in:
+ * - Server Components (RSC)
+ * - Route Handlers (app/api/...)
+ * - Server Actions
+ *
+ * Uses the anon/public key — respects RLS policies.
+ * For admin operations that bypass RLS, use createAdminClient() instead.
+ */
+export async function createClient() {
+  const cookieStore = await cookies()
+
+  return createServerClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            )
+          } catch {
+            // Can be ignored in Server Components (read-only cookie store)
+          }
+        },
+      },
+    }
+  )
+}
+
+/**
+ * Admin client — bypasses RLS.
+ * Only use in trusted server contexts (admin API routes, cron jobs).
+ * NEVER expose SUPABASE_SERVICE_ROLE_KEY to the browser.
+ */
+export async function createAdminClient() {
+  const cookieStore = await cookies()
+
+  return createServerClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            )
+          } catch {}
+        },
+      },
+    }
+  )
+}

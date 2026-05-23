@@ -2,13 +2,163 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { Eye, EyeOff, Upload, UserCircle2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Eye, EyeOff, Upload, UserCircle2, CheckCircle2, Loader2, AlertCircle } from 'lucide-react'
 import { Logo } from '@/components/mealsaver/logo'
 
+type FormState = {
+  organization_name: string
+  organization_type: string
+  full_name: string
+  phone: string
+  email: string
+  city: string
+  address: string
+  service_area_km: string
+  accepts_cooked: boolean
+  accepts_raw: boolean
+  accepts_packaged: boolean
+  accepts_non_veg: boolean
+  password: string
+  confirm_password: string
+}
+
+const INITIAL: FormState = {
+  organization_name: '',
+  organization_type: 'ngo',
+  full_name: '',
+  phone: '',
+  email: '',
+  city: '',
+  address: '',
+  service_area_km: '10',
+  accepts_cooked: true,
+  accepts_raw: true,
+  accepts_packaged: true,
+  accepts_non_veg: false,
+  password: '',
+  confirm_password: '',
+}
+
 export default function NGORegisterPage() {
+  const router = useRouter()
+
+  const [form, setForm] = useState<FormState>(INITIAL)
   const [showPw, setShowPw] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [agreed, setAgreed] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [emailSent, setEmailSent] = useState(false)
+
+  const field = (key: keyof FormState) => ({
+    value: form[key] as string,
+    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+      setForm(prev => ({ ...prev, [key]: e.target.value })),
+  })
+
+  const checkbox = (key: keyof FormState) => ({
+    checked: form[key] as boolean,
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
+      setForm(prev => ({ ...prev, [key]: e.target.checked })),
+  })
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+
+    // ── Client-side validation
+    if (!form.organization_name.trim()) return setError('Please enter your organization name')
+    if (!form.full_name.trim())         return setError('Please enter the contact person name')
+    if (!form.email.trim())             return setError('Please enter your email')
+    if (!form.address.trim())           return setError('Please enter your address')
+    if (!form.city.trim())              return setError('Please enter your city')
+    if (form.password.length < 8)       return setError('Password must be at least 8 characters')
+    if (form.password !== form.confirm_password) return setError('Passwords do not match')
+    if (!agreed)                        return setError('Please agree to the terms to continue')
+
+    setLoading(true)
+
+    try {
+      // ── Step 1: Create auth account
+      const signupRes = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: form.email.trim(),
+          password: form.password,
+          full_name: form.full_name.trim(),
+          phone: form.phone ? `+91${form.phone.replace(/\D/g, '')}` : undefined,
+          role: 'receiver',
+        }),
+      })
+
+      const signupJson = await safeJson(signupRes)
+      if (!signupRes.ok) {
+        setError(signupJson?.error?.message ?? `Signup failed (${signupRes.status})`)
+        return
+      }
+
+      // ── Step 2: Create receiver/NGO profile
+      const profileRes = await fetch('/api/receiver/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          organization_name: form.organization_name.trim(),
+          organization_type: form.organization_type,
+          phone: form.phone ? `+91${form.phone.replace(/\D/g, '')}` : undefined,
+          address: form.address.trim(),
+          city: form.city.trim(),
+          service_area_km: parseInt(form.service_area_km) || 10,
+          accepts_veg: true,
+          accepts_non_veg: form.accepts_non_veg,
+          accepts_vegan: true,
+          accepts_cooked: form.accepts_cooked,
+          accepts_raw: form.accepts_raw,
+          accepts_packaged: form.accepts_packaged,
+          accepts_short_term: form.accepts_cooked,
+          accepts_long_term: form.accepts_packaged || form.accepts_raw,
+        }),
+      })
+
+      if (!profileRes.ok) {
+        setEmailSent(true)
+        return
+      }
+
+      router.push('/ngo/dashboard')
+
+    } catch (e) {
+      console.error('[NGORegister]', e)
+      setError('Something went wrong. Open DevTools → Console for details.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // ── Email confirmation screen
+  if (emailSent) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4">
+        <div className="w-full max-w-md rounded-2xl border border-border bg-card px-8 py-10 text-center shadow-sm">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-green-50">
+            <CheckCircle2 size={28} className="text-primary" />
+          </div>
+          <h2 className="mb-2 text-xl font-bold text-foreground">Check your email</h2>
+          <p className="mb-6 text-sm text-muted-foreground">
+            We sent a confirmation link to <strong>{form.email}</strong>.<br />
+            Click it to activate your account, then log in.
+          </p>
+          <Link
+            href="/login"
+            className="block w-full rounded-lg bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+          >
+            Go to Login
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background px-4 py-12">
@@ -25,8 +175,16 @@ export default function NGORegisterPage() {
 
           <h1 className="mb-6 text-xl font-bold text-foreground">NGO / Receiver Registration Form</h1>
 
-          <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
-            {/* Organisation Details heading */}
+          {/* Error banner */}
+          {error && (
+            <div className="mb-5 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              <AlertCircle size={16} className="mt-0.5 shrink-0" />
+              {error}
+            </div>
+          )}
+
+          <form className="space-y-5" onSubmit={handleSubmit}>
+            {/* Organisation Details */}
             <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
               <UserCircle2 size={15} className="text-primary" />
               Organisation Details
@@ -35,16 +193,22 @@ export default function NGORegisterPage() {
             {/* Row 1 */}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Field label="Organization Name" required>
-                <input type="text" placeholder="Enter organization name" className={inputCls} />
+                <input
+                  type="text"
+                  placeholder="Enter organization name"
+                  className={inputCls}
+                  {...field('organization_name')}
+                />
               </Field>
               <Field label="Organization Type" required>
-                <select className={inputCls} defaultValue="">
-                  <option value="" disabled>Select type</option>
-                  <option>Shelter</option>
-                  <option>Community Kitchen</option>
-                  <option>Orphanage</option>
-                  <option>Old Age Home</option>
-                  <option>Food Bank</option>
+                <select className={inputCls} {...field('organization_type')}>
+                  <option value="ngo">NGO / Food Bank</option>
+                  <option value="shelter">Shelter / Old Age Home</option>
+                  <option value="community_kitchen">Community Kitchen</option>
+                  <option value="orphanage">Orphanage</option>
+                  <option value="animal_shelter">Animal Shelter</option>
+                  <option value="feeding_program">Feeding Program</option>
+                  <option value="other">Other</option>
                 </select>
               </Field>
             </div>
@@ -52,7 +216,12 @@ export default function NGORegisterPage() {
             {/* Row 2 */}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Field label="Contact Person" required>
-                <input type="text" placeholder="Full name" className={inputCls} />
+                <input
+                  type="text"
+                  placeholder="Full name"
+                  className={inputCls}
+                  {...field('full_name')}
+                />
               </Field>
               <Field label="Phone Number" required>
                 <div className="flex">
@@ -61,8 +230,9 @@ export default function NGORegisterPage() {
                   </span>
                   <input
                     type="tel"
-                    defaultValue="98765 43210"
+                    placeholder="98765 43210"
                     className={inputCls + ' rounded-l-none'}
+                    {...field('phone')}
                   />
                 </div>
               </Field>
@@ -71,45 +241,69 @@ export default function NGORegisterPage() {
             {/* Row 3 */}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Field label="Email" required>
-                <input type="email" placeholder="you@example.com" className={inputCls} />
+                <input
+                  type="email"
+                  placeholder="you@example.com"
+                  className={inputCls}
+                  {...field('email')}
+                />
               </Field>
-              <Field label="Service Area" required>
-                <select className={inputCls} defaultValue="">
-                  <option value="" disabled>Select service area</option>
-                  <option>Koramangala</option>
-                  <option>Indiranagar</option>
-                  <option>HSR Layout</option>
-                  <option>BTM Layout</option>
-                  <option>Whitefield</option>
+              <Field label="Service Area Radius" required>
+                <select className={inputCls} {...field('service_area_km')}>
+                  <option value="5">Within 5 km</option>
+                  <option value="10">Within 10 km</option>
+                  <option value="15">Within 15 km</option>
+                  <option value="25">Within 25 km</option>
+                  <option value="50">Within 50 km</option>
                 </select>
               </Field>
             </div>
 
             {/* Address */}
             <Field label="Address" required>
-              <input type="text" placeholder="Enter full address" className={inputCls} />
+              <input
+                type="text"
+                placeholder="Enter full address"
+                className={inputCls}
+                {...field('address')}
+              />
             </Field>
 
-            {/* Row 4 */}
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Field label="Storage Capability" required>
-                <select className={inputCls} defaultValue="">
-                  <option value="" disabled>Select capacity</option>
-                  <option>No storage</option>
-                  <option>Refrigerated (small)</option>
-                  <option>Refrigerated (large)</option>
-                  <option>Dry storage</option>
-                </select>
-              </Field>
-              <Field label="Food Types Accepted" required>
-                <select className={inputCls} defaultValue="">
-                  <option value="" disabled>Select food types</option>
-                  <option>All food types</option>
-                  <option>Cooked food only</option>
-                  <option>Raw materials only</option>
-                  <option>Packaged food only</option>
-                </select>
-              </Field>
+            {/* City */}
+            <Field label="City" required>
+              <input
+                type="text"
+                placeholder="e.g. Bengaluru"
+                className={inputCls}
+                {...field('city')}
+              />
+            </Field>
+
+            {/* Food preferences */}
+            <div>
+              <p className="mb-2 text-sm font-medium text-foreground">
+                Food Types Accepted <span className="text-destructive">*</span>
+              </p>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {[
+                  { key: 'accepts_cooked' as const,   label: 'Cooked food' },
+                  { key: 'accepts_raw' as const,      label: 'Raw / vegetables' },
+                  { key: 'accepts_packaged' as const, label: 'Packaged goods' },
+                  { key: 'accepts_non_veg' as const,  label: 'Non-vegetarian' },
+                ].map(({ key, label }) => (
+                  <label
+                    key={key}
+                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground hover:bg-secondary"
+                  >
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-primary"
+                      {...checkbox(key)}
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
             </div>
 
             {/* Passwords */}
@@ -118,13 +312,14 @@ export default function NGORegisterPage() {
                 <div className="relative">
                   <input
                     type={showPw ? 'text' : 'password'}
-                    placeholder="Enter password"
+                    placeholder="Min. 8 characters"
                     className={inputCls + ' pr-10'}
+                    {...field('password')}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPw(!showPw)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   >
                     {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
@@ -134,13 +329,14 @@ export default function NGORegisterPage() {
                 <div className="relative">
                   <input
                     type={showConfirm ? 'text' : 'password'}
-                    placeholder="Confirm password"
+                    placeholder="Repeat password"
                     className={inputCls + ' pr-10'}
+                    {...field('confirm_password')}
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirm(!showConfirm)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   >
                     {showConfirm ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
@@ -158,7 +354,7 @@ export default function NGORegisterPage() {
               </div>
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <Field label="Organization Verification" required>
+                <Field label="Organization Verification">
                   <label className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-dashed border-border bg-secondary/50 px-4 py-6 text-center hover:bg-secondary">
                     <Upload size={22} className="text-muted-foreground" />
                     <span className="text-sm font-medium text-foreground">Upload document</span>
@@ -166,7 +362,7 @@ export default function NGORegisterPage() {
                     <input type="file" className="hidden" accept=".pdf,.jpg,.png" />
                   </label>
                 </Field>
-                <Field label="Registration Proof" required>
+                <Field label="Registration Proof">
                   <label className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-dashed border-border bg-secondary/50 px-4 py-6 text-center hover:bg-secondary">
                     <Upload size={22} className="text-muted-foreground" />
                     <span className="text-sm font-medium text-foreground">Upload document</span>
@@ -192,15 +388,27 @@ export default function NGORegisterPage() {
 
             <button
               type="submit"
-              className="w-full rounded-lg bg-primary py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+              disabled={loading}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Create NGO Account
+              {loading && <Loader2 size={16} className="animate-spin" />}
+              {loading ? 'Creating account…' : 'Create NGO Account'}
             </button>
           </form>
         </div>
       </div>
     </div>
   )
+}
+
+async function safeJson(res: Response) {
+  try {
+    return await res.json()
+  } catch {
+    const text = await res.text().catch(() => '')
+    console.error('API returned non-JSON response:', res.status, text.slice(0, 300))
+    return null
+  }
 }
 
 const inputCls =
