@@ -1,4 +1,6 @@
 import { withAuth, withDonor } from '@/lib/api/auth-guard'
+import { db, donations, donation_images, donor_profiles } from '@/lib/db'
+import { eq, and } from 'drizzle-orm'
 import { validateBody, z } from '@/lib/api/validate'
 import { ok, err, notFound, forbidden, serverError } from '@/lib/api/response'
 import type { NextRequest } from 'next/server'
@@ -30,60 +32,57 @@ const updateSchema = z.object({
     .optional(),
 })
 
-// ─────────────────────────────────────────────────────────────
-// Route context helper
-// ─────────────────────────────────────────────────────────────
 type Ctx = { params: Promise<{ id: string }> }
 
 // ─────────────────────────────────────────────────────────────
 // GET /api/donations/[id]
-// Returns full donation with images + donor profile info.
-// Open to any authenticated user.
 // ─────────────────────────────────────────────────────────────
 export const GET = withAuth(
-  async (_req: NextRequest, { supabase }, ctx: Ctx) => {
+  async (_req: NextRequest, _auth, ctx: Ctx) => {
     const { id } = await ctx.params
 
-    const { data, error } = await supabase
-      .from('donations')
-      .select(
-        `
-        *,
-        donation_images ( id, image_url, storage_path, is_primary, uploaded_at ),
-        donor_profiles  (
-          id, business_name, business_type, city,
-          phone, verification_status
-        )
-        `
-      )
-      .eq('id', id)
-      .single()
+    const [donation] = await db
+      .select()
+      .from(donations)
+      .where(eq(donations.id, id))
 
-    if (error || !data) return notFound('Donation')
+    if (!donation) return notFound('Donation')
 
-    return ok(data)
+    const [images, [donorProfile]] = await Promise.all([
+      db.select().from(donation_images).where(eq(donation_images.donation_id, id)),
+      db
+        .select({
+          id:                  donor_profiles.id,
+          business_name:       donor_profiles.business_name,
+          business_type:       donor_profiles.business_type,
+          city:                donor_profiles.city,
+          phone:               donor_profiles.phone,
+          verification_status: donor_profiles.verification_status,
+        })
+        .from(donor_profiles)
+        .where(eq(donor_profiles.id, donation.donor_profile_id)),
+    ])
+
+    return ok({ ...donation, donation_images: images, donor_profiles: donorProfile ?? null })
   }
 )
 
 // ─────────────────────────────────────────────────────────────
 // PUT /api/donations/[id]
-// Update a donation. Donors only, and only while status = available.
 // ─────────────────────────────────────────────────────────────
 export const PUT = withDonor(
-  async (req: NextRequest, { profile, supabase }, ctx: Ctx) => {
+  async (req: NextRequest, { profile }, ctx: Ctx) => {
     const { id } = await ctx.params
 
     const { data: body, error: bodyErr } = await validateBody(req, updateSchema)
     if (bodyErr) return bodyErr
 
-    // ── Load the donation and verify ownership
-    const { data: donation, error: fetchErr } = await supabase
-      .from('donations')
-      .select('id, donor_id, status')
-      .eq('id', id)
-      .single()
+    const [donation] = await db
+      .select({ id: donations.id, donor_id: donations.donor_id, status: donations.status })
+      .from(donations)
+      .where(eq(donations.id, id))
 
-    if (fetchErr || !donation) return notFound('Donation')
+    if (!donation) return notFound('Donation')
 
     if (donation.donor_id !== profile.id) {
       return forbidden('You can only edit your own donations')
@@ -97,15 +96,12 @@ export const PUT = withDonor(
       )
     }
 
-    const { pickup_latitude, pickup_longitude, expiry_time, ...rest } = body
+    const { pickup_latitude, pickup_longitude, expiry_time, quantity_kg, ...rest } = body
 
-    // ── Expiry must still be in the future if being changed
     if (expiry_time && new Date(expiry_time) <= new Date()) {
       return err('expiry_time must be in the future', 422, 'VALIDATION_ERROR')
     }
 
-    // ── Update is_urgent based on new expiry or existing one
-    const effectiveExpiry = expiry_time ?? donation.status
     let is_urgent: boolean | undefined
     if (expiry_time) {
       const hoursToExpiry =
@@ -113,51 +109,59 @@ export const PUT = withDonor(
       is_urgent = hoursToExpiry < 4
     }
 
-    // ── Update location only if both coords provided
     const locationUpdate: { pickup_location?: string } = {}
     if (pickup_latitude != null && pickup_longitude != null) {
       locationUpdate.pickup_location = `POINT(${pickup_longitude} ${pickup_latitude})`
     }
 
-    const updatePayload = {
+    const updatePayload: Record<string, unknown> = {
       ...rest,
-      ...(expiry_time && { expiry_time }),
+      ...(expiry_time && { expiry_time: new Date(expiry_time) }),
       ...(is_urgent !== undefined && { is_urgent }),
+      ...(quantity_kg !== undefined && { quantity_kg: String(quantity_kg) }),
       ...locationUpdate,
+    }
+    // Convert any remaining datetime strings to Date objects
+    if (typeof updatePayload.preparation_time === 'string') {
+      updatePayload.preparation_time = new Date(updatePayload.preparation_time as string)
+    }
+    if (typeof updatePayload.preferred_pickup_time === 'string') {
+      updatePayload.preferred_pickup_time = new Date(updatePayload.preferred_pickup_time as string)
     }
 
     if (Object.keys(updatePayload).length === 0) {
       return err('No updatable fields provided', 422, 'VALIDATION_ERROR')
     }
 
-    const { data: updated, error: updateErr } = await supabase
-      .from('donations')
-      .update(updatePayload)
-      .eq('id', id)
-      .select()
-      .single()
+    try {
+      const [updated] = await db
+        .update(donations)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .set(updatePayload as any)
+        .where(eq(donations.id, id))
+        .returning()
 
-    if (updateErr) return serverError(updateErr.message)
-
-    return ok(updated)
+      return ok(updated)
+    } catch (e) {
+      console.error('[PUT /api/donations/[id]]', e)
+      return serverError('Failed to update donation')
+    }
   }
 )
 
 // ─────────────────────────────────────────────────────────────
 // DELETE /api/donations/[id]
-// Delete a donation. Donor only, status must be available or cancelled.
 // ─────────────────────────────────────────────────────────────
 export const DELETE = withDonor(
-  async (_req: NextRequest, { profile, supabase }, ctx: Ctx) => {
+  async (_req: NextRequest, { profile }, ctx: Ctx) => {
     const { id } = await ctx.params
 
-    const { data: donation, error: fetchErr } = await supabase
-      .from('donations')
-      .select('id, donor_id, status')
-      .eq('id', id)
-      .single()
+    const [donation] = await db
+      .select({ id: donations.id, donor_id: donations.donor_id, status: donations.status })
+      .from(donations)
+      .where(eq(donations.id, id))
 
-    if (fetchErr || !donation) return notFound('Donation')
+    if (!donation) return notFound('Donation')
 
     if (donation.donor_id !== profile.id) {
       return forbidden('You can only delete your own donations')
@@ -172,29 +176,8 @@ export const DELETE = withDonor(
       )
     }
 
-    // ── Remove associated images from storage first
-    const { data: images } = await supabase
-      .from('donation_images')
-      .select('storage_path')
-      .eq('donation_id', id)
-      .not('storage_path', 'is', null)
-
-    if (images && images.length > 0) {
-      const paths = images
-        .map(img => img.storage_path)
-        .filter(Boolean) as string[]
-
-      if (paths.length > 0) {
-        await supabase.storage.from('donation-images').remove(paths)
-      }
-    }
-
-    const { error: deleteErr } = await supabase
-      .from('donations')
-      .delete()
-      .eq('id', id)
-
-    if (deleteErr) return serverError(deleteErr.message)
+    // Delete the donation (images cascade via FK)
+    await db.delete(donations).where(eq(donations.id, id))
 
     return ok({ message: 'Donation deleted successfully', id })
   }

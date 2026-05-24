@@ -1,40 +1,47 @@
 import { withAdmin } from '@/lib/api/auth-guard'
-import { ok, notFound, serverError } from '@/lib/api/response'
+import { db, users, donor_profiles, receiver_profiles, donations } from '@/lib/db'
+import { eq, desc } from 'drizzle-orm'
+import { ok, notFound } from '@/lib/api/response'
 import type { NextRequest } from 'next/server'
 
 type Ctx = { params: Promise<{ id: string }> }
 
 // ─────────────────────────────────────────────────────────────
 // GET /api/admin/users/[id]
-//
-// Get a single user with full profile data.
 // ─────────────────────────────────────────────────────────────
 export const GET = withAdmin(
-  async (_req: NextRequest, { supabase }, ctx: Ctx) => {
+  async (_req: NextRequest, _auth, ctx: Ctx) => {
     const { id } = await ctx.params
 
-    const { data, error } = await supabase
-      .from('users')
-      .select(
-        `
-        *,
-        donor_profiles (*),
-        receiver_profiles (*)
-        `
-      )
-      .eq('id', id)
-      .single()
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, id))
 
-    if (error || !data) return notFound('User')
+    if (!user) return notFound('User')
 
-    // Also fetch their recent donations
-    const { data: donations } = await supabase
-      .from('donations')
-      .select('id, title, status, created_at, pickup_city')
-      .eq('donor_id', id)
-      .order('created_at', { ascending: false })
-      .limit(10)
+    const [donorProfile, receiverProfile, recentDonations] = await Promise.all([
+      db.select().from(donor_profiles).where(eq(donor_profiles.user_id, id)),
+      db.select().from(receiver_profiles).where(eq(receiver_profiles.user_id, id)),
+      db
+        .select({
+          id:          donations.id,
+          title:       donations.title,
+          status:      donations.status,
+          created_at:  donations.created_at,
+          pickup_city: donations.pickup_city,
+        })
+        .from(donations)
+        .where(eq(donations.donor_id, id))
+        .orderBy(desc(donations.created_at))
+        .limit(10),
+    ])
 
-    return ok({ ...data, recent_donations: donations ?? [] })
+    return ok({
+      ...user,
+      donor_profiles:    donorProfile,
+      receiver_profiles: receiverProfile,
+      recent_donations:  recentDonations,
+    })
   }
 )

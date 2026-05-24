@@ -1,4 +1,6 @@
 import { withAuth, withDonor } from '@/lib/api/auth-guard'
+import { db, donations, donation_images, donor_profiles } from '@/lib/db'
+import { eq, and, ilike, desc, asc, count, sql } from 'drizzle-orm'
 import { validateBody, validateParams, z } from '@/lib/api/validate'
 import { ok, created, err, serverError } from '@/lib/api/response'
 import type { NextRequest } from 'next/server'
@@ -86,83 +88,99 @@ const listSchema = z.object({
 
 // ─────────────────────────────────────────────────────────────
 // GET /api/donations
-//
-// For donors:   ?my=true  → their own donations (any status)
-// For receivers: default  → available donations in their area
-// For all:      supports ?status, ?city, ?food_category, ?food_type,
-//               ?food_condition, ?is_urgent, ?page, ?limit
 // ─────────────────────────────────────────────────────────────
-export const GET = withAuth(async (req: NextRequest, { profile, supabase }) => {
-  const { data: params, error: paramError } = validateParams(req, listSchema)
+export const GET = withAuth(async (req: NextRequest, { profile }) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: rawParams, error: paramError } = validateParams(req, listSchema as any)
   if (paramError) return paramError as Response
+  const params = rawParams as { status?: string; city?: string; food_category?: string; food_type?: string; food_condition?: string; is_urgent?: boolean; page: number; limit: number; my?: boolean }
 
   const { status, city, food_category, food_type, food_condition, is_urgent, page, limit, my } = params
-
   const offset = (page - 1) * limit
 
-  let query = supabase
-    .from('donations')
-    .select(
-      `
-      *,
-      donation_images ( id, image_url, is_primary ),
-      donor_profiles  ( business_name, business_type, city )
-      `,
-      { count: 'exact' }
-    )
+  const conditions = []
 
-  // ── Role-specific defaults
+  // Role-specific defaults
   if (my || profile.role === 'donor') {
-    // Donor: show their own donations by default
-    query = query.eq('donor_id', profile.id)
-  } else if (profile.role === 'receiver') {
-    // Receiver: show available donations (unless specific status requested)
-    if (!status) query = query.eq('status', 'available')
+    conditions.push(eq(donations.donor_id, profile.id))
+  } else if (profile.role === 'receiver' && !status) {
+    conditions.push(eq(donations.status, 'available'))
   }
 
-  // ── Filters
-  if (status)         query = query.eq('status', status)
-  if (city)           query = query.ilike('pickup_city', `%${city}%`)
-  if (food_category)  query = query.eq('food_category', food_category)
-  if (food_type)      query = query.eq('food_type', food_type)
-  if (food_condition) query = query.eq('food_condition', food_condition)
-  if (is_urgent !== undefined) query = query.eq('is_urgent', is_urgent)
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  if (status)         conditions.push(eq(donations.status,         status         as any))
+  if (city)           conditions.push(ilike(donations.pickup_city, `%${city}%`))
+  if (food_category)  conditions.push(eq(donations.food_category,  food_category  as any))
+  if (food_type)      conditions.push(eq(donations.food_type,      food_type      as any))
+  if (food_condition) conditions.push(eq(donations.food_condition, food_condition as any))
+  if (is_urgent !== undefined) conditions.push(eq(donations.is_urgent, is_urgent))
+  /* eslint-enable @typescript-eslint/no-explicit-any */
 
-  // ── Ordering + pagination
-  query = query
-    .order('is_urgent', { ascending: false })
-    .order('expiry_time', { ascending: true })
-    .range(offset, offset + limit - 1)
+  const where = conditions.length > 0 ? and(...conditions) : undefined
 
-  const { data, error, count } = await query
+  const [rows, [{ total }]] = await Promise.all([
+    db
+      .select()
+      .from(donations)
+      .where(where)
+      .orderBy(desc(donations.is_urgent), asc(donations.expiry_time))
+      .limit(limit)
+      .offset(offset),
+    db.select({ total: count() }).from(donations).where(where),
+  ])
 
-  if (error) return serverError(error.message)
+  // Fetch images for each donation
+  const donationIds = rows.map(d => d.id)
+  const images = donationIds.length > 0
+    ? await db
+        .select()
+        .from(donation_images)
+        .where(sql`${donation_images.donation_id} = ANY(${sql.raw(`ARRAY['${donationIds.join("','")}']::uuid[]`)})`)
+    : []
+
+  // Fetch donor profiles
+  const donorProfileIds = [...new Set(rows.map(d => d.donor_profile_id))]
+  const donorProfiles = donorProfileIds.length > 0
+    ? await db
+        .select({
+          id:            donor_profiles.id,
+          business_name: donor_profiles.business_name,
+          business_type: donor_profiles.business_type,
+          city:          donor_profiles.city,
+        })
+        .from(donor_profiles)
+        .where(sql`${donor_profiles.id} = ANY(${sql.raw(`ARRAY['${donorProfileIds.join("','")}']::uuid[]`)})`)
+    : []
+
+  const enriched = rows.map(d => ({
+    ...d,
+    donation_images:  images.filter(img => img.donation_id === d.id),
+    donor_profiles:   donorProfiles.find(dp => dp.id === d.donor_profile_id) ?? null,
+  }))
 
   return ok({
-    donations: data ?? [],
+    donations: enriched,
     pagination: {
       page,
       limit,
-      total: count ?? 0,
-      pages: Math.ceil((count ?? 0) / limit),
+      total: Number(total),
+      pages: Math.ceil(Number(total) / limit),
     },
   })
 })
 
 // ─────────────────────────────────────────────────────────────
 // POST /api/donations
-// Create a new donation listing (donors only).
 // ─────────────────────────────────────────────────────────────
-export const POST = withDonor(async (req: NextRequest, { profile, supabase }) => {
+export const POST = withDonor(async (req: NextRequest, { profile }) => {
   const { data, error } = await validateBody(req, createSchema)
   if (error) return error
 
-  // ── Ensure donor has a profile
-  const { data: donorProfile } = await supabase
-    .from('donor_profiles')
-    .select('id')
-    .eq('user_id', profile.id)
-    .maybeSingle()
+  // Ensure donor has a profile
+  const [donorProfile] = await db
+    .select({ id: donor_profiles.id })
+    .from(donor_profiles)
+    .where(eq(donor_profiles.user_id, profile.id))
 
   if (!donorProfile) {
     return err(
@@ -172,41 +190,55 @@ export const POST = withDonor(async (req: NextRequest, { profile, supabase }) =>
     )
   }
 
-  // ── Validate expiry time is in the future
+  // Validate expiry time is in the future
   if (new Date(data.expiry_time) <= new Date()) {
     return err('expiry_time must be in the future', 422, 'VALIDATION_ERROR')
   }
 
   const { pickup_latitude, pickup_longitude, ...rest } = data
 
-  // ── PostGIS WKT: POINT(longitude latitude)
   const pickup_location =
     pickup_latitude != null && pickup_longitude != null
       ? `POINT(${pickup_longitude} ${pickup_latitude})`
       : null
 
-  // ── Calculate urgency: < 4 hours to expiry = urgent
   const hoursToExpiry =
     (new Date(data.expiry_time).getTime() - Date.now()) / (1000 * 60 * 60)
   const is_urgent = hoursToExpiry < 4
 
-  const { data: donation, error: insertError } = await supabase
-    .from('donations')
-    .insert({
-      ...rest,
-      donor_id: profile.id,
-      donor_profile_id: donorProfile.id,
-      pickup_location,
-      is_urgent,
-      status: 'available',
+  try {
+    const [donation] = await db
+      .insert(donations)
+      .values({
+        title:                data.title,
+        description:          data.description ?? null,
+        food_category:        data.food_category,
+        food_type:            data.food_type,
+        food_condition:       data.food_condition,
+        quantity_kg:          String(data.quantity_kg),
+        quantity_description: data.quantity_description ?? null,
+        serves_approx:        data.serves_approx ?? null,
+        preparation_time:     data.preparation_time ? new Date(data.preparation_time) : undefined,
+        expiry_time:          new Date(data.expiry_time),
+        preferred_pickup_time: data.preferred_pickup_time ? new Date(data.preferred_pickup_time) : undefined,
+        pickup_address:       data.pickup_address,
+        pickup_city:          data.pickup_city,
+        pickup_instructions:  data.pickup_instructions ?? null,
+        contact_number:       data.contact_number,
+        donor_id:             profile.id,
+        donor_profile_id:     donorProfile.id,
+        pickup_location:      pickup_location ?? undefined,
+        is_urgent,
+        status:               'available',
+      })
+      .returning()
+
+    return created({
+      ...donation,
+      message: 'Donation listed successfully. NGOs in your area will be notified.',
     })
-    .select()
-    .single()
-
-  if (insertError) return serverError(insertError.message)
-
-  return created({
-    ...donation,
-    message: 'Donation listed successfully. NGOs in your area will be notified.',
-  })
+  } catch (e) {
+    console.error('[POST /api/donations]', e)
+    return serverError('Failed to create donation')
+  }
 })

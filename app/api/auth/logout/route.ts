@@ -1,17 +1,23 @@
-import { createClient } from '@/lib/supabase/server'
+import { auth, clerkClient } from '@clerk/nextjs/server'
 import { ok, serverError } from '@/lib/api/response'
 
 // ─────────────────────────────────────────────────────────────
 // POST /api/auth/logout
-// Invalidates the session — works even if already logged out.
+// Revokes the current Clerk session — works even if already logged out.
 // ─────────────────────────────────────────────────────────────
 
 export async function POST() {
-  const supabase = await createClient()
+  try {
+    const { sessionId } = await auth()
 
-  const { error } = await supabase.auth.signOut()
+    if (sessionId) {
+      const clerk = await clerkClient()
+      await clerk.sessions.revokeSession(sessionId)
+    }
 
-  if (error) return serverError(error.message)
-
-  return ok({ message: 'Logged out successfully' })
+    return ok({ message: 'Logged out successfully' })
+  } catch (e) {
+    console.error('[POST /api/auth/logout]', e)
+    return serverError('Failed to log out')
+  }
 }

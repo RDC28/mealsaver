@@ -1,49 +1,65 @@
 import { withAuth } from '@/lib/api/auth-guard'
-import { ok, notFound, forbidden, serverError } from '@/lib/api/response'
+import { db, pickup_assignments, donations, donation_images, receiver_profiles } from '@/lib/db'
+import { eq } from 'drizzle-orm'
+import { ok, notFound, forbidden } from '@/lib/api/response'
 import type { NextRequest } from 'next/server'
 
 type Ctx = { params: Promise<{ id: string }> }
 
 // ─────────────────────────────────────────────────────────────
 // GET /api/pickups/[id]
-//
-// Returns pickup details. Accessible by:
-//  - The receiver who created the pickup
-//  - The donor whose donation is being picked up
-//  - Admin
 // ─────────────────────────────────────────────────────────────
 export const GET = withAuth(
-  async (_req: NextRequest, { profile, supabase }, ctx: Ctx) => {
+  async (_req: NextRequest, { profile }, ctx: Ctx) => {
     const { id } = await ctx.params
 
-    const { data, error } = await supabase
-      .from('pickup_assignments')
-      .select(
-        `
-        *,
-        donations (
-          id, title, status, pickup_address, pickup_city,
-          pickup_instructions, contact_number, donor_id,
-          donation_images ( image_url, is_primary )
-        ),
-        receiver_profiles ( organization_name, phone )
-        `
-      )
-      .eq('id', id)
-      .single()
+    const [pickup] = await db
+      .select()
+      .from(pickup_assignments)
+      .where(eq(pickup_assignments.id, id))
 
-    if (error || !data) return notFound('Pickup assignment')
+    if (!pickup) return notFound('Pickup assignment')
 
-    // ── Access control: donor, receiver, or admin
-    const donorId = (data.donations as { donor_id: string } | null)?.donor_id
-    const isReceiver = data.receiver_id === profile.id
-    const isDonor    = donorId === profile.id
+    // Load related donation info
+    const [donation] = await db
+      .select({
+        id:                   donations.id,
+        title:                donations.title,
+        status:               donations.status,
+        pickup_address:       donations.pickup_address,
+        pickup_city:          donations.pickup_city,
+        pickup_instructions:  donations.pickup_instructions,
+        contact_number:       donations.contact_number,
+        donor_id:             donations.donor_id,
+      })
+      .from(donations)
+      .where(eq(donations.id, pickup.donation_id))
+
+    const images = donation
+      ? await db
+          .select({ image_url: donation_images.image_url, is_primary: donation_images.is_primary })
+          .from(donation_images)
+          .where(eq(donation_images.donation_id, pickup.donation_id))
+      : []
+
+    const [receiverProfile] = await db
+      .select({ organization_name: receiver_profiles.organization_name, phone: receiver_profiles.phone })
+      .from(receiver_profiles)
+      .where(eq(receiver_profiles.id, pickup.receiver_profile_id))
+
+    // Access control: donor, receiver, or admin
+    const isDonor    = donation?.donor_id === profile.id
+    const isReceiver = pickup.receiver_id === profile.id
     const isAdmin    = profile.role === 'admin'
 
     if (!isReceiver && !isDonor && !isAdmin) {
       return forbidden('You do not have access to this pickup')
     }
 
-    return ok(data)
+    return ok({
+      ...pickup,
+      donations:         donation ? { ...donation, donation_images: images } : null,
+      receiver_profiles: receiverProfile ?? null,
+    })
   }
 )

@@ -1,4 +1,6 @@
 import { withAdmin } from '@/lib/api/auth-guard'
+import { db, donations, donation_images, donor_profiles, users } from '@/lib/db'
+import { eq, ilike, and, desc, count } from 'drizzle-orm'
 import { validateParams, z } from '@/lib/api/validate'
 import { ok, serverError } from '@/lib/api/response'
 import type { NextRequest } from 'next/server'
@@ -11,57 +13,60 @@ const listSchema = z.object({
       'expired', 'cancelled', 'rejected', 'unsafe',
     ])
     .optional(),
-  city: z.string().optional(),
+  city:     z.string().optional(),
   food_type: z.enum(['veg', 'non_veg', 'vegan']).optional(),
   donor_id: z.string().uuid().optional(),
-  page: z.string().regex(/^\d+$/).transform(Number).default('1'),
-  limit: z.string().regex(/^\d+$/).transform(Number).default('25'),
+  page:     z.string().regex(/^\d+$/).transform(Number).default('1'),
+  limit:    z.string().regex(/^\d+$/).transform(Number).default('25'),
 })
 
 // ─────────────────────────────────────────────────────────────
 // GET /api/admin/donations
-//
-// Admin view of all donations with full filters.
 // ─────────────────────────────────────────────────────────────
 export const GET = withAdmin(
-  async (req: NextRequest, { supabase }) => {
-    const { data: params, error: paramErr } = validateParams(req, listSchema)
+  async (req: NextRequest) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: rawParams, error: paramErr } = validateParams(req, listSchema as any)
     if (paramErr) return paramErr as Response
+    const params = rawParams as { status?: string; city?: string; food_type?: string; donor_id?: string; page: number; limit: number }
 
     const { status, city, food_type, donor_id, page, limit } = params
     const offset = (page - 1) * limit
 
-    let query = supabase
-      .from('donations')
-      .select(
-        `
-        *,
-        donation_images ( id, image_url, is_primary ),
-        donor_profiles  ( business_name, business_type, city, verification_status ),
-        users!donations_donor_id_fkey ( full_name, email, phone )
-        `,
-        { count: 'exact' }
-      )
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1)
+    const conditions = []
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    if (status)    conditions.push(eq(donations.status,    status    as any))
+    if (city)      conditions.push(ilike(donations.pickup_city, `%${city}%`))
+    if (food_type) conditions.push(eq(donations.food_type, food_type as any))
+    if (donor_id)  conditions.push(eq(donations.donor_id, donor_id))
+    /* eslint-enable @typescript-eslint/no-explicit-any */
 
-    if (status)   query = query.eq('status', status)
-    if (city)     query = query.ilike('pickup_city', `%${city}%`)
-    if (food_type) query = query.eq('food_type', food_type)
-    if (donor_id) query = query.eq('donor_id', donor_id)
+    const where = conditions.length > 0 ? and(...conditions) : undefined
 
-    const { data, error, count } = await query
+    try {
+      const [rows, [{ total }]] = await Promise.all([
+        db
+          .select()
+          .from(donations)
+          .where(where)
+          .orderBy(desc(donations.created_at))
+          .limit(limit)
+          .offset(offset),
+        db.select({ total: count() }).from(donations).where(where),
+      ])
 
-    if (error) return serverError(error.message)
-
-    return ok({
-      donations: data ?? [],
-      pagination: {
-        page,
-        limit,
-        total: count ?? 0,
-        pages: Math.ceil((count ?? 0) / limit),
-      },
-    })
+      return ok({
+        donations: rows,
+        pagination: {
+          page,
+          limit,
+          total: Number(total),
+          pages: Math.ceil(Number(total) / limit),
+        },
+      })
+    } catch (e) {
+      console.error('[GET /api/admin/donations]', e)
+      return serverError('Failed to load donations')
+    }
   }
 )

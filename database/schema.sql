@@ -313,15 +313,16 @@ COMMENT ON COLUMN impact_reports.co2_impact_kg IS 'Estimated CO2 saved. Formula:
 -- NOTIFICATIONS (in-app)
 -- ────────────────────────────────────────────────────────────
 CREATE TABLE notifications (
-  id          UUID                PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id     UUID                NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  type        notification_type   NOT NULL,
-  title       TEXT                NOT NULL,
-  message     TEXT                NOT NULL,
-  data        JSONB               NOT NULL DEFAULT '{}',  -- donation_id, pickup_id, etc.
-  is_read     BOOLEAN             NOT NULL DEFAULT FALSE,
-  read_at     TIMESTAMPTZ,
-  created_at  TIMESTAMPTZ         NOT NULL DEFAULT NOW()
+  id                    UUID                PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id               UUID                NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  type                  notification_type   NOT NULL,
+  title                 TEXT                NOT NULL,
+  message               TEXT                NOT NULL,
+  related_donation_id   UUID                REFERENCES donations(id) ON DELETE SET NULL,
+  data                  JSONB               NOT NULL DEFAULT '{}',
+  is_read               BOOLEAN             NOT NULL DEFAULT FALSE,
+  read_at               TIMESTAMPTZ,
+  created_at            TIMESTAMPTZ         NOT NULL DEFAULT NOW()
 );
 
 -- ────────────────────────────────────────────────────────────

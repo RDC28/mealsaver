@@ -1,8 +1,8 @@
-import { createClient } from '@/lib/supabase/server'
+import { auth } from '@clerk/nextjs/server'
+import { db, users } from '@/lib/db'
+import { eq } from 'drizzle-orm'
 import { unauthorized, forbidden, serverError } from './response'
-import type { UserRole, User } from '@/lib/supabase/types'
-import type { SupabaseClient } from '@supabase/supabase-js'
-import type { Database } from '@/lib/supabase/types'
+import type { User, UserRole } from '@/lib/db'
 import type { NextRequest } from 'next/server'
 
 // ─────────────────────────────────────────────────────────────
@@ -10,36 +10,36 @@ import type { NextRequest } from 'next/server'
 // ─────────────────────────────────────────────────────────────
 export type AuthContext = {
   user: {
-    id: string
-    email: string | undefined
+    id: string       // our Neon UUID
+    clerkId: string  // Clerk's user_xxx ID
   }
-  profile: User                               // row from public.users
-  supabase: SupabaseClient<Database>
+  profile: User     // row from public.users
 }
 
 // Next.js App Router route context (contains params for dynamic routes)
-type RouteContext = {
-  params?: Promise<Record<string, string>>
-}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type RouteContext = { params?: Promise<any> }
 
 // The handler shape every protected route must match
-type ProtectedHandler = (
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type ProtectedHandler = (
   req: NextRequest,
   auth: AuthContext,
-  routeCtx: RouteContext
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  routeCtx: any
 ) => Promise<Response>
 
 // ─────────────────────────────────────────────────────────────
-// withAuth — wraps a route handler with auth + optional role check
+// withAuth — wraps a route handler with Clerk auth + role check
 //
 // Usage (any logged-in user):
-//   export const GET = withAuth(async (req, { user, profile, supabase }) => { ... })
+//   export const GET = withAuth(async (req, { user, profile }) => { ... })
 //
 // Usage (specific roles only):
-//   export const POST = withAuth(async (req, { profile, supabase }) => { ... }, ['admin'])
+//   export const POST = withAuth(async (req, { profile }) => { ... }, ['admin'])
 //
 // Usage (dynamic route with params):
-//   export const GET = withAuth(async (req, { supabase }, ctx) => {
+//   export const GET = withAuth(async (req, auth, ctx) => {
 //     const { id } = await ctx.params!
 //   })
 // ─────────────────────────────────────────────────────────────
@@ -49,25 +49,18 @@ export function withAuth(
 ) {
   return async (req: NextRequest, routeCtx: RouteContext = {}) => {
     try {
-      const supabase = await createClient()
+      // 1. Get Clerk session
+      const { userId: clerkId } = await auth()
 
-      // 1. Verify the session
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser()
+      if (!clerkId) return unauthorized()
 
-      if (authError || !user) return unauthorized()
+      // 2. Load our user row via clerk_id
+      const [profile] = await db
+        .select()
+        .from(users)
+        .where(eq(users.clerk_id, clerkId))
 
-      // 2. Load the public profile (contains our app role)
-      const { data: profile, error: profileError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', user.id)
-        .single()
-
-      if (profileError || !profile) {
-        // Edge case: auth user exists but trigger didn't create profile yet
+      if (!profile) {
         return serverError('User profile not found. Please contact support.')
       }
 
@@ -84,7 +77,7 @@ export function withAuth(
       // 5. Call the actual handler
       return handler(
         req,
-        { user: { id: user.id, email: user.email }, profile, supabase },
+        { user: { id: profile.id, clerkId }, profile },
         routeCtx
       )
     } catch (e) {
@@ -97,8 +90,8 @@ export function withAuth(
 // ─────────────────────────────────────────────────────────────
 // Role-specific convenience wrappers
 // ─────────────────────────────────────────────────────────────
-export const withDonor    = (h: ProtectedHandler) => withAuth(h, ['donor'])
-export const withReceiver = (h: ProtectedHandler) => withAuth(h, ['receiver'])
-export const withAdmin    = (h: ProtectedHandler) => withAuth(h, ['admin'])
-export const withDonorOrAdmin    = (h: ProtectedHandler) => withAuth(h, ['donor', 'admin'])
-export const withReceiverOrAdmin = (h: ProtectedHandler) => withAuth(h, ['receiver', 'admin'])
+export const withDonor             = (h: ProtectedHandler) => withAuth(h, ['donor'])
+export const withReceiver          = (h: ProtectedHandler) => withAuth(h, ['receiver'])
+export const withAdmin             = (h: ProtectedHandler) => withAuth(h, ['admin'])
+export const withDonorOrAdmin      = (h: ProtectedHandler) => withAuth(h, ['donor', 'admin'])
+export const withReceiverOrAdmin   = (h: ProtectedHandler) => withAuth(h, ['receiver', 'admin'])

@@ -1,4 +1,6 @@
 import { withDonor } from '@/lib/api/auth-guard'
+import { db, donor_profiles } from '@/lib/db'
+import { eq } from 'drizzle-orm'
 import { validateBody, z } from '@/lib/api/validate'
 import { ok, created, conflict, notFound, serverError } from '@/lib/api/response'
 import type { NextRequest } from 'next/server'
@@ -36,28 +38,23 @@ const createSchema = z.object({
     .string()
     .regex(/^[0-9]{5,10}$/, 'Invalid pincode')
     .optional(),
-  // Frontend gets these from browser Geolocation API or a map picker
   latitude: z.number().min(-90).max(90).optional(),
   longitude: z.number().min(-180).max(180).optional(),
   food_license_number: z.string().optional(),
   gst_number: z.string().optional(),
 })
 
-// All fields optional for updates — frontend sends only what changed
 const updateSchema = createSchema.partial()
 
 // ─────────────────────────────────────────────────────────────
 // GET /api/donor/profile
-// Returns the logged-in donor's business profile.
 // ─────────────────────────────────────────────────────────────
-export const GET = withDonor(async (_req: NextRequest, { profile, supabase }) => {
-  const { data, error } = await supabase
-    .from('donor_profiles')
-    .select('*')
-    .eq('user_id', profile.id)
-    .maybeSingle()
+export const GET = withDonor(async (_req: NextRequest, { profile }) => {
+  const [data] = await db
+    .select()
+    .from(donor_profiles)
+    .where(eq(donor_profiles.user_id, profile.id))
 
-  if (error) return serverError(error.message)
   if (!data) return notFound('Donor profile')
 
   return ok(data)
@@ -65,18 +62,16 @@ export const GET = withDonor(async (_req: NextRequest, { profile, supabase }) =>
 
 // ─────────────────────────────────────────────────────────────
 // POST /api/donor/profile
-// Creates the donor's business profile (one-time setup after signup).
 // ─────────────────────────────────────────────────────────────
-export const POST = withDonor(async (req: NextRequest, { profile, supabase }) => {
+export const POST = withDonor(async (req: NextRequest, { profile }) => {
   const { data, error } = await validateBody(req, createSchema)
   if (error) return error
 
   // Prevent creating a duplicate profile
-  const { data: existing } = await supabase
-    .from('donor_profiles')
-    .select('id')
-    .eq('user_id', profile.id)
-    .maybeSingle()
+  const [existing] = await db
+    .select({ id: donor_profiles.id })
+    .from(donor_profiles)
+    .where(eq(donor_profiles.user_id, profile.id))
 
   if (existing) {
     return conflict('Donor profile already exists. Use PUT to update it.')
@@ -84,64 +79,65 @@ export const POST = withDonor(async (req: NextRequest, { profile, supabase }) =>
 
   const { latitude, longitude, ...rest } = data
 
-  // PostGIS WKT format: POINT(longitude latitude) — lon first, then lat
   const location =
     latitude != null && longitude != null
       ? `POINT(${longitude} ${latitude})`
       : null
 
-  const { data: newProfile, error: insertError } = await supabase
-    .from('donor_profiles')
-    .insert({
-      ...rest,
-      user_id: profile.id,
-      location,
+  try {
+    const [newProfile] = await db
+      .insert(donor_profiles)
+      .values({
+        ...rest,
+        user_id:  profile.id,
+        location: location ?? undefined,
+      })
+      .returning()
+
+    return created({
+      ...newProfile,
+      message: 'Profile created. Your account is pending verification by the MealSaver team.',
     })
-    .select()
-    .single()
-
-  if (insertError) return serverError(insertError.message)
-
-  return created({
-    ...newProfile,
-    message: 'Profile created. Your account is pending verification by the MealSaver team.',
-  })
+  } catch (e) {
+    console.error('[POST /api/donor/profile]', e)
+    return serverError('Failed to create profile')
+  }
 })
 
 // ─────────────────────────────────────────────────────────────
 // PUT /api/donor/profile
-// Updates the donor's business profile. Partial updates supported.
 // ─────────────────────────────────────────────────────────────
-export const PUT = withDonor(async (req: NextRequest, { profile, supabase }) => {
+export const PUT = withDonor(async (req: NextRequest, { profile }) => {
   const { data, error } = await validateBody(req, updateSchema)
   if (error) return error
 
   if (Object.keys(data).length === 0) {
-    return error ?? serverError('No fields provided to update')
+    return serverError('No fields provided to update')
   }
 
   const { latitude, longitude, ...rest } = data
 
-  // Only update location if both lat AND lng are provided together
   const locationUpdate: { location?: string } = {}
   if (latitude != null && longitude != null) {
     locationUpdate.location = `POINT(${longitude} ${latitude})`
   }
 
-  const { data: updated, error: updateError } = await supabase
-    .from('donor_profiles')
-    .update({ ...rest, ...locationUpdate })
-    .eq('user_id', profile.id)
-    .select()
-    .single()
+  const updatePayload = { ...rest, ...locationUpdate }
 
-  if (updateError) {
-    // PGRST116 = no rows matched (profile doesn't exist yet)
-    if (updateError.code === 'PGRST116') {
+  try {
+    const [updated] = await db
+      .update(donor_profiles)
+      .set(updatePayload)
+      .where(eq(donor_profiles.user_id, profile.id))
+      .returning()
+
+    if (!updated) {
       return notFound('Donor profile — create it first with POST /api/donor/profile')
     }
-    return serverError(updateError.message)
-  }
 
-  return ok(updated)
+    return ok(updated)
+  } catch (e) {
+    console.error('[PUT /api/donor/profile]', e)
+    return serverError('Failed to update profile')
+  }
 })

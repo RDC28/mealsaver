@@ -1,4 +1,6 @@
 import { withReceiver } from '@/lib/api/auth-guard'
+import { db, receiver_profiles } from '@/lib/db'
+import { eq } from 'drizzle-orm'
 import { validateBody, z } from '@/lib/api/validate'
 import { ok, created, conflict, notFound, serverError } from '@/lib/api/response'
 import type { NextRequest } from 'next/server'
@@ -36,10 +38,8 @@ const createSchema = z.object({
     .string()
     .regex(/^[0-9]{5,10}$/, 'Invalid pincode')
     .optional(),
-  // Location for nearest-NGO matching
   latitude: z.number().min(-90).max(90).optional(),
   longitude: z.number().min(-180).max(180).optional(),
-  // Operational preferences — used by the matching algorithm
   service_area_km: z
     .number()
     .int()
@@ -50,18 +50,14 @@ const createSchema = z.object({
     .number()
     .positive('Capacity must be a positive number')
     .optional(),
-  // Food type preferences
-  accepts_veg: z.boolean().default(true),
-  accepts_non_veg: z.boolean().default(false),
-  accepts_vegan: z.boolean().default(true),
-  // Food condition preferences
-  accepts_cooked: z.boolean().default(true),
-  accepts_raw: z.boolean().default(true),
-  accepts_packaged: z.boolean().default(true),
-  // Food category preferences
-  accepts_short_term: z.boolean().default(true),
-  accepts_long_term: z.boolean().default(true),
-  // Verification document reference
+  accepts_veg:         z.boolean().default(true),
+  accepts_non_veg:     z.boolean().default(false),
+  accepts_vegan:       z.boolean().default(true),
+  accepts_cooked:      z.boolean().default(true),
+  accepts_raw:         z.boolean().default(true),
+  accepts_packaged:    z.boolean().default(true),
+  accepts_short_term:  z.boolean().default(true),
+  accepts_long_term:   z.boolean().default(true),
   registration_number: z.string().optional(),
 })
 
@@ -69,16 +65,13 @@ const updateSchema = createSchema.partial()
 
 // ─────────────────────────────────────────────────────────────
 // GET /api/receiver/profile
-// Returns the logged-in NGO/receiver's organisation profile.
 // ─────────────────────────────────────────────────────────────
-export const GET = withReceiver(async (_req: NextRequest, { profile, supabase }) => {
-  const { data, error } = await supabase
-    .from('receiver_profiles')
-    .select('*')
-    .eq('user_id', profile.id)
-    .maybeSingle()
+export const GET = withReceiver(async (_req: NextRequest, { profile }) => {
+  const [data] = await db
+    .select()
+    .from(receiver_profiles)
+    .where(eq(receiver_profiles.user_id, profile.id))
 
-  if (error) return serverError(error.message)
   if (!data) return notFound('Receiver profile')
 
   return ok(data)
@@ -86,54 +79,53 @@ export const GET = withReceiver(async (_req: NextRequest, { profile, supabase })
 
 // ─────────────────────────────────────────────────────────────
 // POST /api/receiver/profile
-// Creates the NGO's profile (one-time setup after signup).
 // ─────────────────────────────────────────────────────────────
-export const POST = withReceiver(async (req: NextRequest, { profile, supabase }) => {
+export const POST = withReceiver(async (req: NextRequest, { profile }) => {
   const { data, error } = await validateBody(req, createSchema)
   if (error) return error
 
   // Prevent duplicates
-  const { data: existing } = await supabase
-    .from('receiver_profiles')
-    .select('id')
-    .eq('user_id', profile.id)
-    .maybeSingle()
+  const [existing] = await db
+    .select({ id: receiver_profiles.id })
+    .from(receiver_profiles)
+    .where(eq(receiver_profiles.user_id, profile.id))
 
   if (existing) {
     return conflict('Receiver profile already exists. Use PUT to update it.')
   }
 
-  const { latitude, longitude, ...rest } = data
+  const { latitude, longitude, max_capacity_kg, ...rest } = data
 
   const location =
     latitude != null && longitude != null
       ? `POINT(${longitude} ${latitude})`
       : null
 
-  const { data: newProfile, error: insertError } = await supabase
-    .from('receiver_profiles')
-    .insert({
-      ...rest,
-      user_id: profile.id,
-      location,
+  try {
+    const [newProfile] = await db
+      .insert(receiver_profiles)
+      .values({
+        ...rest,
+        user_id:         profile.id,
+        location:        location ?? undefined,
+        max_capacity_kg: max_capacity_kg != null ? String(max_capacity_kg) : undefined,
+      })
+      .returning()
+
+    return created({
+      ...newProfile,
+      message: 'Profile created. Your organisation is pending verification by the MealSaver team.',
     })
-    .select()
-    .single()
-
-  if (insertError) return serverError(insertError.message)
-
-  return created({
-    ...newProfile,
-    message: 'Profile created. Your organisation is pending verification by the MealSaver team.',
-  })
+  } catch (e) {
+    console.error('[POST /api/receiver/profile]', e)
+    return serverError('Failed to create profile')
+  }
 })
 
 // ─────────────────────────────────────────────────────────────
 // PUT /api/receiver/profile
-// Updates the NGO's profile. Partial updates supported.
-// Key use case: updating food preferences, service area, capacity.
 // ─────────────────────────────────────────────────────────────
-export const PUT = withReceiver(async (req: NextRequest, { profile, supabase }) => {
+export const PUT = withReceiver(async (req: NextRequest, { profile }) => {
   const { data, error } = await validateBody(req, updateSchema)
   if (error) return error
 
@@ -141,26 +133,33 @@ export const PUT = withReceiver(async (req: NextRequest, { profile, supabase }) 
     return serverError('No fields provided to update')
   }
 
-  const { latitude, longitude, ...rest } = data
+  const { latitude, longitude, max_capacity_kg, ...rest } = data
 
   const locationUpdate: { location?: string } = {}
   if (latitude != null && longitude != null) {
     locationUpdate.location = `POINT(${longitude} ${latitude})`
   }
 
-  const { data: updated, error: updateError } = await supabase
-    .from('receiver_profiles')
-    .update({ ...rest, ...locationUpdate })
-    .eq('user_id', profile.id)
-    .select()
-    .single()
-
-  if (updateError) {
-    if (updateError.code === 'PGRST116') {
-      return notFound('Receiver profile — create it first with POST /api/receiver/profile')
-    }
-    return serverError(updateError.message)
+  const updatePayload = {
+    ...rest,
+    ...locationUpdate,
+    ...(max_capacity_kg != null ? { max_capacity_kg: String(max_capacity_kg) } : {}),
   }
 
-  return ok(updated)
+  try {
+    const [updated] = await db
+      .update(receiver_profiles)
+      .set(updatePayload)
+      .where(eq(receiver_profiles.user_id, profile.id))
+      .returning()
+
+    if (!updated) {
+      return notFound('Receiver profile — create it first with POST /api/receiver/profile')
+    }
+
+    return ok(updated)
+  } catch (e) {
+    console.error('[PUT /api/receiver/profile]', e)
+    return serverError('Failed to update profile')
+  }
 })

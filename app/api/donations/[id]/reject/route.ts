@@ -1,4 +1,6 @@
 import { withReceiver } from '@/lib/api/auth-guard'
+import { db, donations, donation_receiver_notifications, notifications } from '@/lib/db'
+import { eq, and } from 'drizzle-orm'
 import { validateBody, z } from '@/lib/api/validate'
 import { ok, err, notFound, serverError } from '@/lib/api/response'
 import type { NextRequest } from 'next/server'
@@ -6,35 +8,30 @@ import type { NextRequest } from 'next/server'
 type Ctx = { params: Promise<{ id: string }> }
 
 const rejectSchema = z.object({
-  rejection_reason: z
-    .string()
-    .max(500)
-    .optional(),
+  rejection_reason: z.string().max(500).optional(),
 })
 
 // ─────────────────────────────────────────────────────────────
 // POST /api/donations/[id]/reject
-//
-// NGO rejects a donation they were notified about.
-// After rejection the donation stays pending_acceptance so other
-// NGOs can still accept it. If ALL notified NGOs reject, the
-// donation reverts to "available" status.
 // ─────────────────────────────────────────────────────────────
 export const POST = withReceiver(
-  async (req: NextRequest, { profile, supabase }, ctx: Ctx) => {
+  async (req: NextRequest, { profile }, ctx: Ctx) => {
     const { id: donationId } = await ctx.params
 
     const { data: body, error: bodyErr } = await validateBody(req, rejectSchema)
     if (bodyErr) return bodyErr
 
-    // ── Check the donation
-    const { data: donation, error: fetchErr } = await supabase
-      .from('donations')
-      .select('id, donor_id, status, title, pickup_city')
-      .eq('id', donationId)
-      .single()
+    const [donation] = await db
+      .select({
+        id:       donations.id,
+        donor_id: donations.donor_id,
+        status:   donations.status,
+        title:    donations.title,
+      })
+      .from(donations)
+      .where(eq(donations.id, donationId))
 
-    if (fetchErr || !donation) return notFound('Donation')
+    if (!donation) return notFound('Donation')
 
     if (!['pending_acceptance', 'available'].includes(donation.status)) {
       return err(
@@ -44,22 +41,18 @@ export const POST = withReceiver(
       )
     }
 
-    // ── Check the NGO was notified
-    const { data: notification, error: notifErr } = await supabase
-      .from('donation_receiver_notifications')
-      .select('id, response')
-      .eq('donation_id', donationId)
-      .eq('receiver_id', profile.id)
-      .maybeSingle()
-
-    if (notifErr) return serverError(notifErr.message)
+    const [notification] = await db
+      .select({ id: donation_receiver_notifications.id, response: donation_receiver_notifications.response })
+      .from(donation_receiver_notifications)
+      .where(
+        and(
+          eq(donation_receiver_notifications.donation_id, donationId),
+          eq(donation_receiver_notifications.receiver_id, profile.id)
+        )
+      )
 
     if (!notification) {
-      return err(
-        'You were not notified about this donation.',
-        403,
-        'NOT_ELIGIBLE'
-      )
+      return err('You were not notified about this donation.', 403, 'NOT_ELIGIBLE')
     }
 
     if (notification.response !== 'no_response') {
@@ -70,42 +63,44 @@ export const POST = withReceiver(
       )
     }
 
-    // ── Mark the notification as rejected
-    const { error: updateErr } = await supabase
-      .from('donation_receiver_notifications')
-      .update({
-        response: 'rejected',
-        responded_at: new Date().toISOString(),
+    // Mark the notification as rejected
+    await db
+      .update(donation_receiver_notifications)
+      .set({
+        response:         'rejected',
+        responded_at:     new Date(),
         rejection_reason: body?.rejection_reason ?? null,
       })
-      .eq('id', notification.id)
+      .where(eq(donation_receiver_notifications.id, notification.id))
 
-    if (updateErr) return serverError(updateErr.message)
+    // Check if ALL notified NGOs have now rejected
+    const pendingResponses = await db
+      .select({ id: donation_receiver_notifications.id })
+      .from(donation_receiver_notifications)
+      .where(
+        and(
+          eq(donation_receiver_notifications.donation_id, donationId),
+          eq(donation_receiver_notifications.response, 'no_response')
+        )
+      )
 
-    // ── Check if ALL notified NGOs have now rejected
-    const { data: pendingResponses } = await supabase
-      .from('donation_receiver_notifications')
-      .select('id')
-      .eq('donation_id', donationId)
-      .eq('response', 'no_response')
-
-    const allRejected = !pendingResponses || pendingResponses.length === 0
+    const allRejected = pendingResponses.length === 0
 
     if (allRejected) {
-      // Revert donation to "available" so the donor can re-match or edit it
-      await supabase
-        .from('donations')
-        .update({ status: 'available' })
-        .eq('id', donationId)
+      try {
+        await db
+          .update(donations)
+          .set({ status: 'available' })
+          .where(eq(donations.id, donationId))
 
-      // Notify the donor
-      await supabase.from('notifications').insert({
-        user_id: donation.donor_id,
-        type: 'donation_rejected',
-        title: 'All NGOs have rejected your donation',
-        message: `Unfortunately, all notified NGOs rejected your donation "${donation.title}". You can re-match or edit the listing.`,
-        related_donation_id: donationId,
-      })
+        await db.insert(notifications).values({
+          user_id:             donation.donor_id,
+          type:                'donation_rejected',
+          title:               'All NGOs have rejected your donation',
+          message:             `Unfortunately, all notified NGOs rejected your donation "${donation.title}". You can re-match or edit the listing.`,
+          related_donation_id: donationId,
+        })
+      } catch { /* non-fatal */ }
     }
 
     return ok({

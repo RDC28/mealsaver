@@ -1,4 +1,6 @@
 import { withReceiver } from '@/lib/api/auth-guard'
+import { db, donations, donation_receiver_notifications, pickup_assignments, receiver_profiles, notifications } from '@/lib/db'
+import { eq, and } from 'drizzle-orm'
 import { validateBody, z } from '@/lib/api/validate'
 import { created, err, notFound, serverError } from '@/lib/api/response'
 import type { NextRequest } from 'next/server'
@@ -9,28 +11,30 @@ const createSchema = z.object({
     required_error: 'pickup_type is required',
   }),
   scheduled_pickup_time: z.string().datetime({ offset: true }).optional(),
-  pickup_notes: z.string().max(500).optional(),
+  pickup_notes:          z.string().max(500).optional(),
 })
 
 // ─────────────────────────────────────────────────────────────
 // POST /api/pickups
-//
-// Creates a pickup assignment after the NGO has accepted a donation.
-// Sets donation status → pickup_assigned.
 // ─────────────────────────────────────────────────────────────
 export const POST = withReceiver(
-  async (req: NextRequest, { profile, supabase }) => {
+  async (req: NextRequest, { profile }) => {
     const { data, error } = await validateBody(req, createSchema)
     if (error) return error
 
-    // ── Verify the donation is accepted
-    const { data: donation, error: fetchErr } = await supabase
-      .from('donations')
-      .select('id, donor_id, status, title, pickup_city')
-      .eq('id', data.donation_id)
-      .single()
+    // Verify the donation is accepted
+    const [donation] = await db
+      .select({
+        id:          donations.id,
+        donor_id:    donations.donor_id,
+        status:      donations.status,
+        title:       donations.title,
+        pickup_city: donations.pickup_city,
+      })
+      .from(donations)
+      .where(eq(donations.id, data.donation_id))
 
-    if (fetchErr || !donation) return notFound('Donation')
+    if (!donation) return notFound('Donation')
 
     if (donation.status !== 'accepted') {
       return err(
@@ -40,80 +44,76 @@ export const POST = withReceiver(
       )
     }
 
-    // ── Verify the NGO accepted this donation
-    const { data: notif } = await supabase
-      .from('donation_receiver_notifications')
-      .select('id')
-      .eq('donation_id', data.donation_id)
-      .eq('receiver_id', profile.id)
-      .eq('response', 'accepted')
-      .maybeSingle()
+    // Verify the NGO accepted this donation
+    const [notif] = await db
+      .select({ id: donation_receiver_notifications.id })
+      .from(donation_receiver_notifications)
+      .where(
+        and(
+          eq(donation_receiver_notifications.donation_id, data.donation_id),
+          eq(donation_receiver_notifications.receiver_id, profile.id),
+          eq(donation_receiver_notifications.response, 'accepted')
+        )
+      )
 
     if (!notif) {
-      return err(
-        'You did not accept this donation.',
-        403,
-        'NOT_ELIGIBLE'
-      )
+      return err('You did not accept this donation.', 403, 'NOT_ELIGIBLE')
     }
 
-    // ── Prevent duplicate pickup assignments
-    const { data: existing } = await supabase
-      .from('pickup_assignments')
-      .select('id')
-      .eq('donation_id', data.donation_id)
-      .maybeSingle()
+    // Prevent duplicate pickup assignments
+    const [existing] = await db
+      .select({ id: pickup_assignments.id })
+      .from(pickup_assignments)
+      .where(eq(pickup_assignments.donation_id, data.donation_id))
 
     if (existing) {
-      return err(
-        'A pickup assignment already exists for this donation.',
-        409,
-        'ALREADY_ASSIGNED'
-      )
+      return err('A pickup assignment already exists for this donation.', 409, 'ALREADY_ASSIGNED')
     }
 
-    // ── Get receiver profile ID
-    const { data: receiverProfile } = await supabase
-      .from('receiver_profiles')
-      .select('id')
-      .eq('user_id', profile.id)
-      .maybeSingle()
+    // Get receiver profile ID
+    const [receiverProfile] = await db
+      .select({ id: receiver_profiles.id })
+      .from(receiver_profiles)
+      .where(eq(receiver_profiles.user_id, profile.id))
 
     if (!receiverProfile) {
       return err('Please complete your receiver profile first.', 400, 'PROFILE_REQUIRED')
     }
 
-    // ── Create the pickup assignment
-    const { data: pickup, error: insertErr } = await supabase
-      .from('pickup_assignments')
-      .insert({
-        donation_id: data.donation_id,
-        receiver_id: profile.id,
-        receiver_profile_id: receiverProfile.id,
-        pickup_type: data.pickup_type,
-        pickup_status: 'assigned',
-        scheduled_pickup_time: data.scheduled_pickup_time ?? null,
-        pickup_notes: data.pickup_notes ?? null,
+    // Create the pickup assignment
+    const [pickup] = await db
+      .insert(pickup_assignments)
+      .values({
+        donation_id:           data.donation_id,
+        receiver_id:           profile.id,
+        receiver_profile_id:   receiverProfile.id,
+        pickup_type:           data.pickup_type,
+        pickup_status:         'assigned',
+        scheduled_pickup_time: data.scheduled_pickup_time ? new Date(data.scheduled_pickup_time) : undefined,
+        pickup_notes:          data.pickup_notes ?? null,
       })
-      .select()
-      .single()
+      .returning()
 
-    if (insertErr) return serverError(insertErr.message)
+    if (!pickup) return serverError('Failed to create pickup assignment')
 
-    // ── Update donation status → pickup_assigned
-    await supabase
-      .from('donations')
-      .update({ status: 'pickup_assigned' })
-      .eq('id', data.donation_id)
+    // Update donation status → pickup_assigned (non-fatal, trigger handles it too)
+    try {
+      await db
+        .update(donations)
+        .set({ status: 'pickup_assigned' })
+        .where(eq(donations.id, data.donation_id))
+    } catch { /* non-fatal */ }
 
-    // ── Notify the donor
-    await supabase.from('notifications').insert({
-      user_id: donation.donor_id,
-      type: 'pickup_assigned',
-      title: 'Pickup has been scheduled!',
-      message: `An NGO will pick up your donation "${donation.title}" soon. Have it ready!`,
-      related_donation_id: data.donation_id,
-    })
+    // Notify the donor (non-fatal)
+    try {
+      await db.insert(notifications).values({
+        user_id:             donation.donor_id,
+        type:                'pickup_assigned',
+        title:               'Pickup has been scheduled!',
+        message:             `An NGO will pick up your donation "${donation.title}" soon. Have it ready!`,
+        related_donation_id: data.donation_id,
+      })
+    } catch { /* non-fatal */ }
 
     return created({
       ...pickup,

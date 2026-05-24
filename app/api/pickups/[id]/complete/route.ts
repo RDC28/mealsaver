@@ -1,4 +1,6 @@
 import { withReceiver } from '@/lib/api/auth-guard'
+import { db, pickup_assignments, donations, notifications } from '@/lib/db'
+import { eq } from 'drizzle-orm'
 import { ok, err, notFound, forbidden, serverError } from '@/lib/api/response'
 import type { NextRequest } from 'next/server'
 
@@ -6,22 +8,23 @@ type Ctx = { params: Promise<{ id: string }> }
 
 // ─────────────────────────────────────────────────────────────
 // POST /api/pickups/[id]/complete
-//
-// Marks a pickup as complete → donation status → picked_up.
-// OTP must have been verified first.
-// Only the receiver who created the pickup can complete it.
 // ─────────────────────────────────────────────────────────────
 export const POST = withReceiver(
-  async (_req: NextRequest, { profile, supabase }, ctx: Ctx) => {
+  async (_req: NextRequest, { profile }, ctx: Ctx) => {
     const { id } = await ctx.params
 
-    const { data: pickup, error: fetchErr } = await supabase
-      .from('pickup_assignments')
-      .select('id, receiver_id, pickup_status, otp_verified, donation_id, donations(donor_id, title)')
-      .eq('id', id)
-      .single()
+    const [pickup] = await db
+      .select({
+        id:            pickup_assignments.id,
+        receiver_id:   pickup_assignments.receiver_id,
+        pickup_status: pickup_assignments.pickup_status,
+        otp_verified:  pickup_assignments.otp_verified,
+        donation_id:   pickup_assignments.donation_id,
+      })
+      .from(pickup_assignments)
+      .where(eq(pickup_assignments.id, id))
 
-    if (fetchErr || !pickup) return notFound('Pickup assignment')
+    if (!pickup) return notFound('Pickup assignment')
 
     if (pickup.receiver_id !== profile.id) {
       return forbidden('You can only complete your own pickups')
@@ -47,43 +50,49 @@ export const POST = withReceiver(
       )
     }
 
-    // ── Mark pickup as completed
-    const { error: pickupUpdateErr } = await supabase
-      .from('pickup_assignments')
-      .update({
-        pickup_status: 'completed',
-        actual_pickup_time: new Date().toISOString(),
-      })
-      .eq('id', id)
-
-    if (pickupUpdateErr) return serverError(pickupUpdateErr.message)
-
-    // ── Update donation status → picked_up
-    const { data: updatedDonation, error: donationUpdateErr } = await supabase
-      .from('donations')
-      .update({ status: 'picked_up' })
-      .eq('id', pickup.donation_id)
-      .select()
-      .single()
-
-    if (donationUpdateErr) return serverError(donationUpdateErr.message)
-
-    // ── Notify the donor
-    const donation = pickup.donations as { donor_id: string; title: string } | null
-    if (donation) {
-      await supabase.from('notifications').insert({
-        user_id: donation.donor_id,
-        type: 'pickup_completed',
-        title: 'Food picked up successfully!',
-        message: `Your donation "${donation.title}" has been collected. Thank you for making a difference! 🎉`,
-        related_donation_id: pickup.donation_id,
-      })
+    // Mark pickup as completed
+    try {
+      await db
+        .update(pickup_assignments)
+        .set({
+          pickup_status:      'completed',
+          actual_pickup_time: new Date(),
+        })
+        .where(eq(pickup_assignments.id, id))
+    } catch (e) {
+      console.error('[POST /api/pickups/[id]/complete]', e)
+      return serverError('Failed to complete pickup')
     }
 
+    // Update donation status → picked_up
+    const [updatedDonation] = await db
+      .update(donations)
+      .set({ status: 'picked_up' })
+      .where(eq(donations.id, pickup.donation_id))
+      .returning()
+
+    // Notify the donor (non-fatal)
+    try {
+      const [donation] = await db
+        .select({ donor_id: donations.donor_id, title: donations.title })
+        .from(donations)
+        .where(eq(donations.id, pickup.donation_id))
+
+      if (donation) {
+        await db.insert(notifications).values({
+          user_id:             donation.donor_id,
+          type:                'pickup_completed',
+          title:               'Food picked up successfully!',
+          message:             `Your donation "${donation.title}" has been collected. Thank you for making a difference!`,
+          related_donation_id: pickup.donation_id,
+        })
+      }
+    } catch { /* non-fatal */ }
+
     return ok({
-      message: 'Pickup completed! Please confirm delivery once the food reaches the beneficiaries.',
+      message:   'Pickup completed! Please confirm delivery once the food reaches the beneficiaries.',
       pickup_id: id,
-      donation: updatedDonation,
+      donation:  updatedDonation,
     })
   }
 )

@@ -1,50 +1,53 @@
 import { withAuth } from '@/lib/api/auth-guard'
+import { db, notifications } from '@/lib/db'
+import { eq, and, desc, count } from 'drizzle-orm'
 import { validateParams, z } from '@/lib/api/validate'
 import { ok, serverError } from '@/lib/api/response'
 import type { NextRequest } from 'next/server'
 
 const listSchema = z.object({
-  page: z.string().regex(/^\d+$/).transform(Number).default('1'),
-  limit: z.string().regex(/^\d+$/).transform(Number).default('20'),
+  page:        z.string().regex(/^\d+$/).transform(Number).default('1'),
+  limit:       z.string().regex(/^\d+$/).transform(Number).default('20'),
   unread_only: z.enum(['true', 'false']).transform(v => v === 'true').optional(),
 })
 
 // ─────────────────────────────────────────────────────────────
 // GET /api/notifications
-//
-// Fetch the current user's notifications, newest first.
-// Supports pagination and filtering by read/unread.
 // ─────────────────────────────────────────────────────────────
 export const GET = withAuth(
-  async (req: NextRequest, { profile, supabase }) => {
-    const { data: params, error: paramErr } = validateParams(req, listSchema)
+  async (req: NextRequest, { profile }) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: rawParams, error: paramErr } = validateParams(req, listSchema as any)
     if (paramErr) return paramErr as Response
+    const params = rawParams as { page: number; limit: number; unread_only?: boolean }
 
     const { page, limit, unread_only } = params
     const offset = (page - 1) * limit
 
-    let query = supabase
-      .from('notifications')
-      .select('*', { count: 'exact' })
-      .eq('user_id', profile.id)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1)
-
+    const conditions = [eq(notifications.user_id, profile.id)]
     if (unread_only) {
-      query = query.eq('is_read', false)
+      conditions.push(eq(notifications.is_read, false))
     }
+    const where = and(...conditions)
 
-    const { data, error, count } = await query
-
-    if (error) return serverError(error.message)
+    const [rows, [{ total }]] = await Promise.all([
+      db
+        .select()
+        .from(notifications)
+        .where(where)
+        .orderBy(desc(notifications.created_at))
+        .limit(limit)
+        .offset(offset),
+      db.select({ total: count() }).from(notifications).where(where),
+    ])
 
     return ok({
-      notifications: data ?? [],
+      notifications: rows,
       pagination: {
         page,
         limit,
-        total: count ?? 0,
-        pages: Math.ceil((count ?? 0) / limit),
+        total: Number(total),
+        pages: Math.ceil(Number(total) / limit),
       },
     })
   }
