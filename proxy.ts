@@ -8,6 +8,7 @@ const isPublicRoute = createRouteMatcher([
   '/donor/register',
   '/ngo/register',
   '/api/auth/signup',
+  '/api/cron/(.*)',
 ])
 
 export default clerkMiddleware(async (auth, request) => {

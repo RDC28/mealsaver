@@ -1,9 +1,40 @@
 import { withReceiver } from '@/lib/api/auth-guard'
 import { db, donations, donation_receiver_notifications, pickup_assignments, receiver_profiles, notifications } from '@/lib/db'
-import { eq, and } from 'drizzle-orm'
+import { eq, and, desc } from 'drizzle-orm'
 import { validateBody, z } from '@/lib/api/validate'
-import { created, err, notFound, serverError } from '@/lib/api/response'
+import { ok, created, err, notFound, serverError } from '@/lib/api/response'
 import type { NextRequest } from 'next/server'
+
+// ─────────────────────────────────────────────────────────────
+// GET /api/pickups  — list the current receiver's pickups
+// ─────────────────────────────────────────────────────────────
+export const GET = withReceiver(async (_req: NextRequest, { profile }) => {
+  const rows = await db
+    .select({
+      id:                    pickup_assignments.id,
+      pickup_status:         pickup_assignments.pickup_status,
+      pickup_type:           pickup_assignments.pickup_type,
+      scheduled_pickup_time: pickup_assignments.scheduled_pickup_time,
+      pickup_notes:          pickup_assignments.pickup_notes,
+      otp_verified:          pickup_assignments.otp_verified,
+      assigned_at:           pickup_assignments.assigned_at,
+      donation_id:           pickup_assignments.donation_id,
+      donation_title:        donations.title,
+      donation_status:       donations.status,
+      pickup_address:        donations.pickup_address,
+      pickup_city:           donations.pickup_city,
+      contact_number:        donations.contact_number,
+      pickup_instructions:   donations.pickup_instructions,
+      expiry_time:           donations.expiry_time,
+      is_urgent:             donations.is_urgent,
+    })
+    .from(pickup_assignments)
+    .leftJoin(donations, eq(donations.id, pickup_assignments.donation_id))
+    .where(eq(pickup_assignments.receiver_id, profile.id))
+    .orderBy(desc(pickup_assignments.assigned_at))
+
+  return ok({ pickups: rows })
+})
 
 const createSchema = z.object({
   donation_id: z.string().uuid('donation_id must be a valid UUID'),

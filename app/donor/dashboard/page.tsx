@@ -1,77 +1,118 @@
 import Link from 'next/link'
-import {
-  PlusCircle,
-  CheckCircle2,
-  UtensilsCrossed,
-  Leaf,
-  MoreVertical,
-  TrendingUp,
-  BarChart2,
-} from 'lucide-react'
+import { PlusCircle, MoreVertical, BarChart2 } from 'lucide-react'
+import { auth } from '@clerk/nextjs/server'
+import { db, donations, users, donor_profiles, impact_reports } from '@/lib/db'
+import { eq, desc, inArray, count, sum, and } from 'drizzle-orm'
 import { DashboardSidebar } from '@/components/mealsaver/dashboard-sidebar'
 import { StatusBadge } from '@/components/mealsaver/status-badge'
 
-const stats = [
-  { icon: '🍱', value: '12', label: 'Active Donations', sub: 'View all', href: '/donor/donations' },
-  { icon: '✅', value: '38', label: 'Successful Deliveries', sub: 'View all', href: '/donor/history' },
-  { icon: '🍜', value: '1,240', label: 'Meals Saved', sub: 'This Month' },
-  { icon: '🌿', value: '320 kg', label: 'Waste Reduced', sub: 'This Month' },
-]
+const ACTIVE_STATUSES = ['available', 'pending_acceptance', 'accepted', 'pickup_assigned', 'picked_up'] as const
 
-const recentDonations = [
-  {
-    id: '1',
-    title: 'Veg Biryani + Dal Tadka',
-    qty: '8 Portions',
-    status: 'available' as const,
-    window: '6:00 PM – 7:00 PM',
-    time: '2 min ago',
-  },
-  {
-    id: '2',
-    title: 'Paneer Butter Masala',
-    qty: '6 Portions',
-    status: 'accepted' as const,
-    window: '7:00 PM – 8:00 PM',
-    time: '35 min ago',
-  },
-  {
-    id: '3',
-    title: 'Mixed Veg Curry',
-    qty: '5 Portions',
-    status: 'picked_up' as const,
-    window: '5:00 PM – 6:00 PM',
-    time: '1 hr ago',
-  },
-  {
-    id: '4',
-    title: 'Masala Dosa + Chutney',
-    qty: '10 Portions',
-    status: 'delivered' as const,
-    window: '8:00 PM – 9:00 PM',
-    time: 'Yesterday',
-  },
-  {
-    id: '5',
-    title: 'Veg Pulao',
-    qty: '6 Portions',
-    status: 'expired' as const,
-    window: '—',
-    time: '2 days ago',
-  },
-]
+function formatRelativeDate(date: Date): string {
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const yesterday = new Date(today)
+  yesterday.setDate(today.getDate() - 1)
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate())
 
-export default function DonorDashboardPage() {
+  if (d.getTime() === today.getTime()) return 'Today'
+  if (d.getTime() === yesterday.getTime()) return 'Yesterday'
+
+  return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+function formatTimeWindow(dt: Date | null): string {
+  if (!dt) return '—'
+  return dt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
+}
+
+export default async function DonorDashboardPage() {
+  const { userId } = await auth()
+
+  let businessName = 'there'
+  let recentDonations: {
+    id: string
+    title: string
+    qty: string
+    status: string
+    window: string
+    time: string
+  }[] = []
+  let activeDonations = 0
+  let deliveredDonations = 0
+  let mealsSaved = 0
+  let wasteReduced = 0
+
+  if (userId) {
+    const [user] = await db.select().from(users).where(eq(users.clerk_id, userId))
+
+    if (user) {
+      const [donorProfile] = await db
+        .select({ business_name: donor_profiles.business_name })
+        .from(donor_profiles)
+        .where(eq(donor_profiles.user_id, user.id))
+
+      if (donorProfile) businessName = donorProfile.business_name
+
+      const [recent, [activeRow], [deliveredRow], impactRow] = await Promise.all([
+        db
+          .select()
+          .from(donations)
+          .where(eq(donations.donor_id, user.id))
+          .orderBy(desc(donations.created_at))
+          .limit(5),
+
+        db
+          .select({ count: count() })
+          .from(donations)
+          .where(and(eq(donations.donor_id, user.id), inArray(donations.status, [...ACTIVE_STATUSES]))),
+
+        db
+          .select({ count: count() })
+          .from(donations)
+          .where(and(eq(donations.donor_id, user.id), eq(donations.status, 'delivered'))),
+
+        db
+          .select({
+            meals: sum(impact_reports.meals_saved),
+            waste: sum(impact_reports.food_waste_reduced_kg),
+          })
+          .from(impact_reports)
+          .where(eq(impact_reports.donor_id, user.id)),
+      ])
+
+      activeDonations = Number(activeRow?.count ?? 0)
+      deliveredDonations = Number(deliveredRow?.count ?? 0)
+      mealsSaved = Number(impactRow[0]?.meals ?? 0)
+      wasteReduced = Number(impactRow[0]?.waste ?? 0)
+
+      recentDonations = recent.map((d) => ({
+        id: d.id,
+        title: d.title,
+        qty: d.quantity_description ?? `${d.quantity_kg} kg`,
+        status: d.status,
+        window: formatTimeWindow(d.preferred_pickup_time ?? d.expiry_time),
+        time: formatRelativeDate(d.created_at),
+      }))
+    }
+  }
+
+  const stats = [
+    { icon: '🍱', value: String(activeDonations), label: 'Active Donations', sub: 'View all', href: '/donor/donations' },
+    { icon: '✅', value: String(deliveredDonations), label: 'Successful Deliveries', sub: 'View all', href: '/donor/history' },
+    { icon: '🍜', value: mealsSaved.toLocaleString('en-IN'), label: 'Meals Saved', sub: 'All time' },
+    { icon: '🌿', value: `${wasteReduced.toLocaleString('en-IN')} kg`, label: 'Waste Reduced', sub: 'All time' },
+  ]
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <DashboardSidebar role="donor" />
 
       <main className="flex-1 overflow-y-auto">
-        {/* Top bar */}
         <div className="flex items-start justify-between border-b border-border bg-card px-8 py-5">
           <div>
             <h1 className="text-lg font-bold text-foreground">
-              Welcome back, Green Leaf Café! 🌿
+              Welcome back, {businessName}! 🌿
             </h1>
             <p className="text-sm text-muted-foreground">
               Together, we&apos;re reducing waste and feeding more people.
@@ -87,7 +128,6 @@ export default function DonorDashboardPage() {
         </div>
 
         <div className="px-8 py-6 space-y-6">
-          {/* Stat cards */}
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             {stats.map((s) => (
               <div
@@ -108,7 +148,6 @@ export default function DonorDashboardPage() {
             ))}
           </div>
 
-          {/* Recent Donations table */}
           <div className="rounded-2xl border border-border bg-card shadow-sm">
             <div className="flex items-center justify-between border-b border-border px-6 py-4">
               <h2 className="font-semibold text-foreground">Recent Donations</h2>
@@ -129,28 +168,35 @@ export default function DonorDashboardPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {recentDonations.map((d) => (
-                    <tr key={d.id} className="hover:bg-secondary/30">
-                      <td className="px-6 py-3.5 font-medium text-foreground">{d.title}</td>
-                      <td className="px-4 py-3.5 text-muted-foreground">{d.qty}</td>
-                      <td className="px-4 py-3.5">
-                        <StatusBadge status={d.status} />
-                      </td>
-                      <td className="px-4 py-3.5 text-muted-foreground">{d.window}</td>
-                      <td className="px-4 py-3.5 text-muted-foreground">{d.time}</td>
-                      <td className="px-4 py-3.5">
-                        <button className="text-muted-foreground hover:text-foreground">
-                          <MoreVertical size={16} />
-                        </button>
+                  {recentDonations.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-10 text-center text-sm text-muted-foreground">
+                        No donations yet. Create your first donation!
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    recentDonations.map((d) => (
+                      <tr key={d.id} className="hover:bg-secondary/30">
+                        <td className="px-6 py-3.5 font-medium text-foreground">{d.title}</td>
+                        <td className="px-4 py-3.5 text-muted-foreground">{d.qty}</td>
+                        <td className="px-4 py-3.5">
+                          <StatusBadge status={d.status as Parameters<typeof StatusBadge>[0]['status']} />
+                        </td>
+                        <td className="px-4 py-3.5 text-muted-foreground">{d.window}</td>
+                        <td className="px-4 py-3.5 text-muted-foreground">{d.time}</td>
+                        <td className="px-4 py-3.5">
+                          <button className="text-muted-foreground hover:text-foreground">
+                            <MoreVertical size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
 
-          {/* Impact banner */}
           <div className="flex items-center justify-between rounded-2xl border border-border bg-secondary/40 px-6 py-4">
             <div className="flex items-center gap-3">
               <span className="text-2xl">🌿</span>

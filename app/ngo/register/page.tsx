@@ -80,16 +80,29 @@ export default function NGORegisterPage() {
     setLoading(true)
 
     try {
-      // ── Step 1: Create auth account
+      // ── Create account + profile in one request
       const signupRes = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: form.email.trim(),
-          password: form.password,
-          full_name: form.full_name.trim(),
-          phone: form.phone ? `+91${form.phone.replace(/\D/g, '')}` : undefined,
-          role: 'receiver',
+          email:             form.email.trim(),
+          password:          form.password,
+          full_name:         form.full_name.trim(),
+          phone:             form.phone ? `+91${form.phone.replace(/\D/g, '')}` : undefined,
+          role:              'receiver',
+          organization_name: form.organization_name.trim(),
+          organization_type: form.organization_type,
+          address:           form.address.trim(),
+          city:              form.city.trim(),
+          service_area_km:   parseInt(form.service_area_km) || 10,
+          accepts_veg:       true,
+          accepts_non_veg:   form.accepts_non_veg,
+          accepts_vegan:     true,
+          accepts_cooked:    form.accepts_cooked,
+          accepts_raw:       form.accepts_raw,
+          accepts_packaged:  form.accepts_packaged,
+          accepts_short_term: true,
+          accepts_long_term:  true,
         }),
       })
 
@@ -99,34 +112,8 @@ export default function NGORegisterPage() {
         return
       }
 
-      // ── Step 2: Create receiver/NGO profile
-      const profileRes = await fetch('/api/receiver/profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          organization_name: form.organization_name.trim(),
-          organization_type: form.organization_type,
-          phone: form.phone ? `+91${form.phone.replace(/\D/g, '')}` : undefined,
-          address: form.address.trim(),
-          city: form.city.trim(),
-          service_area_km: parseInt(form.service_area_km) || 10,
-          accepts_veg: true,
-          accepts_non_veg: form.accepts_non_veg,
-          accepts_vegan: true,
-          accepts_cooked: form.accepts_cooked,
-          accepts_raw: form.accepts_raw,
-          accepts_packaged: form.accepts_packaged,
-          accepts_short_term: form.accepts_cooked,
-          accepts_long_term: form.accepts_packaged || form.accepts_raw,
-        }),
-      })
-
-      if (!profileRes.ok) {
-        setEmailSent(true)
-        return
-      }
-
-      router.push('/ngo/dashboard')
+      // ── Success — prompt login
+      setEmailSent(true)
 
     } catch (e) {
       console.error('[NGORegister]', e)
@@ -136,7 +123,7 @@ export default function NGORegisterPage() {
     }
   }
 
-  // ── Email confirmation screen
+  // ── Account created screen
   if (emailSent) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4">
@@ -144,16 +131,16 @@ export default function NGORegisterPage() {
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-green-50">
             <CheckCircle2 size={28} className="text-primary" />
           </div>
-          <h2 className="mb-2 text-xl font-bold text-foreground">Check your email</h2>
+          <h2 className="mb-2 text-xl font-bold text-foreground">Organisation registered!</h2>
           <p className="mb-6 text-sm text-muted-foreground">
-            We sent a confirmation link to <strong>{form.email}</strong>.<br />
-            Click it to activate your account, then log in.
+            Your NGO account for <strong>{form.email}</strong> is ready.<br />
+            Log in to start accepting food donations.
           </p>
           <Link
             href="/login"
             className="block w-full rounded-lg bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
           >
-            Go to Login
+            Log in to Dashboard
           </Link>
         </div>
       </div>

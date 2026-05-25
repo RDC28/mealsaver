@@ -1,7 +1,8 @@
 import { withAuth } from '@/lib/api/auth-guard'
-import { db, donor_profiles, receiver_profiles } from '@/lib/db'
+import { db, users, donor_profiles, receiver_profiles } from '@/lib/db'
 import { eq } from 'drizzle-orm'
-import { ok } from '@/lib/api/response'
+import { validateBody, z } from '@/lib/api/validate'
+import { ok, serverError } from '@/lib/api/response'
 import type { NextRequest } from 'next/server'
 
 // ─────────────────────────────────────────────────────────────
@@ -46,4 +47,38 @@ export const GET = withAuth(async (_req: NextRequest, { profile }) => {
     profile_id:       profileId,
     created_at:       profile.created_at,
   })
+})
+
+const patchSchema = z.object({
+  full_name: z.string().min(2).max(100).optional(),
+  phone: z
+    .string()
+    .regex(/^\+?[0-9\s\-()]{7,20}$/, 'Invalid phone number format')
+    .optional(),
+})
+
+// PATCH /api/auth/me — update full_name and/or phone on the users table
+export const PATCH = withAuth(async (req: NextRequest, { profile }) => {
+  const { data, error } = await validateBody(req, patchSchema)
+  if (error) return error
+
+  if (!data.full_name && !data.phone) {
+    return ok({ message: 'Nothing to update.' })
+  }
+
+  try {
+    const [updated] = await db
+      .update(users)
+      .set({
+        ...(data.full_name ? { full_name: data.full_name } : {}),
+        ...(data.phone     ? { phone:     data.phone }     : {}),
+      })
+      .where(eq(users.id, profile.id))
+      .returning({ id: users.id, full_name: users.full_name, phone: users.phone })
+
+    return ok(updated)
+  } catch (e) {
+    console.error('[PATCH /api/auth/me]', e)
+    return serverError('Failed to update account details.')
+  }
 })

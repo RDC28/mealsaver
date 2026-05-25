@@ -68,16 +68,21 @@ export default function DonorRegisterPage() {
     setLoading(true)
 
     try {
-      // ── Step 1: Create auth account
+      // ── Create account + profile in one request
       const signupRes = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: form.email.trim(),
-          password: form.password,
-          full_name: form.full_name.trim(),
-          phone: form.phone ? `+91${form.phone.replace(/\D/g, '')}` : undefined,
-          role: 'donor',
+          email:               form.email.trim(),
+          password:            form.password,
+          full_name:           form.full_name.trim(),
+          phone:               form.phone ? `+91${form.phone.replace(/\D/g, '')}` : undefined,
+          role:                'donor',
+          business_name:       form.business_name.trim(),
+          business_type:       form.business_type,
+          address:             form.address.trim(),
+          city:                form.city.trim(),
+          food_license_number: form.food_license_number.trim() || undefined,
         }),
       })
 
@@ -87,28 +92,8 @@ export default function DonorRegisterPage() {
         return
       }
 
-      // ── Step 2: Create donor business profile
-      const profileRes = await fetch('/api/donor/profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          business_name: form.business_name.trim(),
-          business_type: form.business_type,
-          phone: form.phone ? `+91${form.phone.replace(/\D/g, '')}` : undefined,
-          address: form.address.trim(),
-          city: form.city.trim(),
-          food_license_number: form.food_license_number.trim() || undefined,
-        }),
-      })
-
-      if (!profileRes.ok) {
-        // Account created but session not active yet (email confirmation required)
-        setEmailSent(true)
-        return
-      }
-
-      // ── Success — go to dashboard
-      router.push('/donor/dashboard')
+      // ── Success — prompt login (Clerk requires a sign-in after server-side user creation)
+      setEmailSent(true)
 
     } catch (e) {
       console.error('[DonorRegister]', e)
@@ -118,7 +103,7 @@ export default function DonorRegisterPage() {
     }
   }
 
-  // ── Email confirmation screen
+  // ── Account created screen
   if (emailSent) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4">
@@ -126,16 +111,16 @@ export default function DonorRegisterPage() {
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-green-50">
             <CheckCircle2 size={28} className="text-primary" />
           </div>
-          <h2 className="mb-2 text-xl font-bold text-foreground">Check your email</h2>
+          <h2 className="mb-2 text-xl font-bold text-foreground">Account created!</h2>
           <p className="mb-6 text-sm text-muted-foreground">
-            We sent a confirmation link to <strong>{form.email}</strong>.<br />
-            Click it to activate your account, then log in.
+            Your donor account for <strong>{form.email}</strong> is ready.<br />
+            Log in to start donating food.
           </p>
           <Link
             href="/login"
             className="block w-full rounded-lg bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
           >
-            Go to Login
+            Log in to Dashboard
           </Link>
         </div>
       </div>

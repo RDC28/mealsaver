@@ -1,8 +1,9 @@
 import { withAuth, withDonor } from '@/lib/api/auth-guard'
 import { db, donations, donation_images, donor_profiles } from '@/lib/db'
-import { eq, and, ilike, desc, asc, count, sql } from 'drizzle-orm'
+import { eq, and, ilike, inArray, desc, asc, count, sql } from 'drizzle-orm'
 import { validateBody, validateParams, z } from '@/lib/api/validate'
 import { ok, created, err, serverError } from '@/lib/api/response'
+import { runDonationMatch } from '@/lib/donation-matching'
 import type { NextRequest } from 'next/server'
 
 // ─────────────────────────────────────────────────────────────
@@ -135,7 +136,7 @@ export const GET = withAuth(async (req: NextRequest, { profile }) => {
     ? await db
         .select()
         .from(donation_images)
-        .where(sql`${donation_images.donation_id} = ANY(${sql.raw(`ARRAY['${donationIds.join("','")}']::uuid[]`)})`)
+        .where(inArray(donation_images.donation_id, donationIds))
     : []
 
   // Fetch donor profiles
@@ -149,7 +150,7 @@ export const GET = withAuth(async (req: NextRequest, { profile }) => {
           city:          donor_profiles.city,
         })
         .from(donor_profiles)
-        .where(sql`${donor_profiles.id} = ANY(${sql.raw(`ARRAY['${donorProfileIds.join("','")}']::uuid[]`)})`)
+        .where(inArray(donor_profiles.id, donorProfileIds))
     : []
 
   const enriched = rows.map(d => ({
@@ -232,6 +233,11 @@ export const POST = withDonor(async (req: NextRequest, { profile }) => {
         status:               'available',
       })
       .returning()
+
+    // Fire-and-forget matching — non-fatal, runs in the same process
+    if (donation) {
+      runDonationMatch(donation.id, donation.pickup_city).catch(() => null)
+    }
 
     return created({
       ...donation,

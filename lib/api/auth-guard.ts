@@ -61,7 +61,7 @@ export function withAuth(
         .where(eq(users.clerk_id, clerkId))
 
       if (!profile) {
-        return serverError('User profile not found. Please contact support.')
+        return unauthorized('Account setup incomplete. Please sign up again or contact support.')
       }
 
       // 3. Check account is active
